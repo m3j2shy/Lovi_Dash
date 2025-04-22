@@ -1,27 +1,28 @@
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 
-def create_popular_keywords_layout():
+def create_referrer_layout():
     return html.Div([
-        html.H2("인기 키워드"),
+        html.H2("유입 출처"),
         html.Div([
             html.Div([
                 # 필터 요소들
                 dbc.Row([
                     dbc.Col([
                         dcc.DatePickerRange(
-                            id='keyword-date-picker',
+                            id='referrer-date-picker',
                             start_date='2023-01-01',
                             end_date='2023-12-31'
                         )
                     ], width=6),
                     dbc.Col([
                         dcc.Dropdown(
-                            id='keyword-category-selector',
+                            id='referrer-type-selector',
                             options=[
                                 {'label': '전체', 'value': 'all'},
-                                {'label': '검색어', 'value': 'search'},
-                                {'label': '태그', 'value': 'tag'}
+                                {'label': '검색 엔진', 'value': 'search'},
+                                {'label': '소셜 미디어', 'value': 'social'},
+                                {'label': '직접 방문', 'value': 'direct'}
                             ],
                             value='all'
                         )
@@ -32,9 +33,9 @@ def create_popular_keywords_layout():
             html.Div([
                 # 메인 차트
                 dcc.Loading(
-                    id="loading-keyword-trend",
+                    id="loading-referrer-sankey",
                     type="circle",
-                    children=dcc.Graph(id='keyword-trend-chart')
+                    children=dcc.Graph(id='referrer-sankey-chart')
                 )
             ], className="main-container"),
             
@@ -42,19 +43,19 @@ def create_popular_keywords_layout():
                 # 세부 정보
                 dbc.Row([
                     dbc.Col([
-                        html.H4("상위 키워드"),
+                        html.H4("상위 유입 출처"),
                         dcc.Loading(
-                            id="loading-top-keywords",
+                            id="loading-top-referrer",
                             type="circle",
-                            children=dcc.Graph(id='top-keywords-chart')
+                            children=dcc.Graph(id='top-referrer-chart')
                         )
                     ], width=6),
                     dbc.Col([
-                        html.H4("키워드 클러스터"),
+                        html.H4("유입 출처별 전환율"),
                         dcc.Loading(
-                            id="loading-keyword-cluster",
+                            id="loading-conversion-rate",
                             type="circle",
-                            children=dcc.Graph(id='keyword-cluster-chart')
+                            children=dcc.Graph(id='conversion-rate-chart')
                         )
                     ], width=6)
                 ])
@@ -62,4 +63,4 @@ def create_popular_keywords_layout():
         ], className="page-container")
     ])
 
-layout = create_popular_keywords_layout() 
+layout = create_referrer_layout() 

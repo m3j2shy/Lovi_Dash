@@ -8,7 +8,7 @@ from utils import create_404_page
 from constants import PAGE_MODULES
 
 # 페이지 모듈 미리 임포트
-from pages import home, traffic, user_analysis, popular_keywords, referral, region, management, about
+from pages import home, traffic, user_analysis, popular_keywords, referrer, region, management, about
 
 app = Dash(__name__, 
            external_stylesheets=[dbc.themes.BOOTSTRAP],
