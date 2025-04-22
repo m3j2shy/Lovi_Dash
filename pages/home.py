@@ -1,42 +1,55 @@
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 
-layout = dbc.Container([
-    html.H1("홈", className="text-center mb-4"),
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader("📊 트래픽 요약"),
-                dbc.CardBody([
-                    # 여기에 트래픽 관련 차트가 들어갈 예정
-                ])
-            ], className="mb-4 shadow-sm")
-        ], width=6),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader("👥 사용자 분석 요약"),
-                dbc.CardBody([
-                    # 여기에 사용자 분석 관련 차트가 들어갈 예정
-                ])
-            ], className="mb-4 shadow-sm")
-        ], width=6)
-    ]),
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader("🔍 인기 키워드 요약"),
-                dbc.CardBody([
-                    # 여기에 인기 키워드 관련 차트가 들어갈 예정
-                ])
-            ], className="mb-4 shadow-sm")
-        ], width=6),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader("🛣️ 유입경로 요약"),
-                dbc.CardBody([
-                    # 여기에 유입경로 관련 차트가 들어갈 예정
-                ])
-            ], className="mb-4 shadow-sm")
-        ], width=6)
+def create_home_layout():
+    return html.Div([
+        html.H2("대시보드"),
+        html.Div([
+            dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        html.H4("실시간 트래픽"),
+                        dcc.Loading(
+                            id="loading-realtime-traffic",
+                            type="circle",
+                            children=dcc.Graph(id='realtime-traffic-chart')
+                        )
+                    ], className="chart-container")
+                ], width=6),
+                dbc.Col([
+                    html.Div([
+                        html.H4("사용자 행동"),
+                        dcc.Loading(
+                            id="loading-user-behavior",
+                            type="circle",
+                            children=dcc.Graph(id='user-behavior-chart')
+                        )
+                    ], className="chart-container")
+                ], width=6)
+            ], className="mb-4"),
+            dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        html.H4("인기 키워드"),
+                        dcc.Loading(
+                            id="loading-popular-keywords",
+                            type="circle",
+                            children=dcc.Graph(id='popular-keywords-chart')
+                        )
+                    ], className="chart-container")
+                ], width=6),
+                dbc.Col([
+                    html.Div([
+                        html.H4("지역 분포"),
+                        dcc.Loading(
+                            id="loading-region-distribution",
+                            type="circle",
+                            children=dcc.Graph(id='region-distribution-chart')
+                        )
+                    ], className="chart-container")
+                ], width=6)
+            ])
+        ], className="page-container")
     ])
-], fluid=True, className="mt-4") 
+
+layout = create_home_layout() 
