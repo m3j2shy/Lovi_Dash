@@ -21,10 +21,12 @@ https://lovi-569292430057.asia-northeast3.run.app
 
 ## 🛠️ 기술 스택
 
-- **프론트엔드**: Dash, Dash Bootstrap Components
-- **백엔드**: Python, Flask
+- **프레임워크**: Dash (Python 기반 웹 애플리케이션 프레임워크)
+- **UI 컴포넌트**: Dash Bootstrap Components
 - **데이터베이스**: Google BigQuery
 - **배포**: Google Cloud Run
+- **CI/CD**: GitHub Actions, Google Cloud Build
+- **버전 관리**: GitHub
 - **인프라**: Docker, Google Cloud Platform
 
 ## 🚀 시작하기
