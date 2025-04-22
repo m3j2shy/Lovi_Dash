@@ -13,6 +13,12 @@ https://lovi-569292430057.asia-northeast3.run.app
 - Cloud Run을 통한 서버리스 배포
 - 반응형 사이드바 네비게이션
 
+## 📊 데이터셋 출처
+이 프로젝트는 [Web Server Access Logs](https://www.kaggle.com/datasets/eliasdabbas/web-server-access-logs) 데이터셋을 사용합니다.
+- 출처: Kaggle
+- 제공자: Elias Dabbas
+- 라이센스: CC0: Public Domain
+
 ## 🛠️ 기술 스택
 
 - **프론트엔드**: Dash, Dash Bootstrap Components
@@ -76,7 +82,3 @@ python app.py
 - 유입 경로 분석
 - 지역별 통계
 - 관리자 기능
-
-## 📝 라이센스
-
-이 프로젝트는 MIT 라이센스 하에 배포됩니다.
