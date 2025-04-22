@@ -2,13 +2,40 @@
 
 귀여운 웹 로그 대시보드 애플리케이션입니다.
 
-## 라이브러리 설치 방법
+## 🚀 배포 주소
 
-1. Python 3.13 설치
+https://lovi-569292430057.asia-northeast3.run.app
+
+## 📋 프로젝트 개요
+
+- Dash를 사용한 웹 로그 분석 대시보드
+- Google BigQuery를 데이터 소스로 활용
+- Cloud Run을 통한 서버리스 배포
+- 반응형 사이드바 네비게이션
+
+## 🛠️ 기술 스택
+
+- **프론트엔드**: Dash, Dash Bootstrap Components
+- **백엔드**: Python, Flask
+- **데이터베이스**: Google BigQuery
+- **배포**: Google Cloud Run
+- **인프라**: Docker, Google Cloud Platform
+
+## 🚀 시작하기
+
+### 필수 요구사항
+
+- Python 3.13
+- Google Cloud Platform 계정
+- BigQuery 접근 권한
+
+### 개발 환경 설정
+
+1. **Python 3.13 설치**
 
    - [Python 공식 웹사이트](https://www.python.org/downloads/)에서 Python 3.13 설치
 
-2. 가상환경 생성 및 활성화
+2. **가상환경 생성 및 활성화**
 
    ```bash
    # 가상환경 생성
@@ -21,29 +48,35 @@
    source .venv/bin/activate
    ```
 
-3. 필요한 라이브러리 설치
+3. **의존성 설치**
+
    ```bash
-   # requirements.txt에 있는 라이브러리 설치
    pip install -r requirements.txt
    ```
 
-## GCP Cloud Run 배포 방법
+4. **환경 변수 설정**
+   - `.env` 파일 생성
+   ```bash
+   GCP_PROJECT_ID=your-project-id
+   BIGQUERY_DATASET=your-dataset
+   BIGQUERY_TABLE=your-table
+   ```
 
-1. Google Cloud SDK 설치
-2. 프로젝트 설정
-
-```bash
-gcloud config set project YOUR_PROJECT_ID
-```
-
-3. 이미지 빌드 및 푸시
-
-```bash
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/olympic-dashboard
-```
-
-4. Cloud Run 서비스 배포
+### 로컬 실행
 
 ```bash
-gcloud run deploy olympic-dashboard --image gcr.io/YOUR_PROJECT_ID/olympic-dashboard --platform managed --region asia-northeast3 --allow-unauthenticated
+python app.py
 ```
+
+## 📊 기능
+
+- 실시간 트래픽 모니터링
+- 사용자 행동 분석
+- 인기 키워드 추적
+- 유입 경로 분석
+- 지역별 통계
+- 관리자 기능
+
+## 📝 라이센스
+
+이 프로젝트는 MIT 라이센스 하에 배포됩니다.
