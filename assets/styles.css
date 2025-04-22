@@ -26,12 +26,17 @@
     padding: 2rem 0.5rem;
 }
 
-.sidebar h2 {
-    font-size: 1.5rem;
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.sidebar-logo {
+    width: 100%;
+    height: auto;
+    max-width: 160px;
+    margin: 0 auto;
+    display: block;
+    transition: all 0.3s;
+}
+
+.sidebar.collapsed .sidebar-logo {
+    max-width: 30px;
 }
 
 .sidebar h3 {

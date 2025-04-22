@@ -12,7 +12,11 @@ def create_sidebar():
     return html.Div(
         [
             html.Div([
-                html.H2("Lovi", className="text-center mb-4"),
+                html.Img(
+                    src="assets/image.webp",
+                    alt="Lovi Logo",
+                    className="sidebar-logo mb-4"
+                ),
                 html.H3("🐶🐹🐱🐰", className="text-center mb-4"),
                 html.Hr(),
                 dbc.Nav(
