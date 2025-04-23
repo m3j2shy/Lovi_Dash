@@ -1,4 +1,4 @@
-from dash import html, dcc, callback, Output, Input, State, ctx
+from dash import html, dcc, callback, Output, Input, State, ctx, dash_table
 import dash_bootstrap_components as dbc
 from utils.utils import load_bigquery_data
 import pandas as pd
@@ -196,6 +196,86 @@ def create_management_layout():
                     ], width=6)
                 ])
             ], className="main-container"),
+            
+            # 세부 정보 섹션
+            html.Div([
+                html.Hr(style={"margin": "30px 0 20px 0"}),
+                html.H3("오류 발생 IP 분석", style={"marginBottom": "20px"}),
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            html.H4("4xx 오류 발생 TOP 10 IP", style={"marginBottom": "10px"}),
+                            dcc.Loading(
+                                id="loading-4xx-ips",
+                                type="circle",
+                                children=dash_table.DataTable(
+                                    id="4xx-ips-table",
+                                    columns=[
+                                        {"name": "순위", "id": "rank"},
+                                        {"name": "IP 주소", "id": "ip"},
+                                        {"name": "요청 수", "id": "count"},
+                                        {"name": "국가/지역", "id": "geo"}
+                                    ],
+                                    style_table={"overflowX": "auto"},
+                                    style_cell={
+                                        "textAlign": "left",
+                                        "padding": "8px",
+                                        "fontFamily": "Arial, sans-serif"
+                                    },
+                                    style_header={
+                                        "backgroundColor": "#f8f9fa",
+                                        "fontWeight": "bold",
+                                        "textAlign": "center"
+                                    },
+                                    style_data_conditional=[
+                                        {
+                                            "if": {"row_index": "odd"},
+                                            "backgroundColor": "#f8f9fa"
+                                        }
+                                    ],
+                                    page_size=10
+                                )
+                            )
+                        ])
+                    ], width=6),
+                    dbc.Col([
+                        html.Div([
+                            html.H4("5xx 오류 발생 TOP 10 IP", style={"marginBottom": "10px"}),
+                            dcc.Loading(
+                                id="loading-5xx-ips",
+                                type="circle",
+                                children=dash_table.DataTable(
+                                    id="5xx-ips-table",
+                                    columns=[
+                                        {"name": "순위", "id": "rank"},
+                                        {"name": "IP 주소", "id": "ip"},
+                                        {"name": "요청 수", "id": "count"},
+                                        {"name": "국가/지역", "id": "geo"}
+                                    ],
+                                    style_table={"overflowX": "auto"},
+                                    style_cell={
+                                        "textAlign": "left",
+                                        "padding": "8px",
+                                        "fontFamily": "Arial, sans-serif"
+                                    },
+                                    style_header={
+                                        "backgroundColor": "#f8f9fa",
+                                        "fontWeight": "bold",
+                                        "textAlign": "center"
+                                    },
+                                    style_data_conditional=[
+                                        {
+                                            "if": {"row_index": "odd"},
+                                            "backgroundColor": "#f8f9fa"
+                                        }
+                                    ],
+                                    page_size=10
+                                )
+                            )
+                        ])
+                    ], width=6)
+                ])
+            ], className="detail-container"),
         ], className="page-container"),
         
         # 데이터 저장용 숨겨진 div
@@ -636,6 +716,84 @@ def update_hourly_status_chart(start_date, end_date, status_codes, chart_mode):
     )
     
     return fig
+
+@callback(
+    [Output('4xx-ips-table', 'data'),
+     Output('5xx-ips-table', 'data')],
+    [Input('management-start-date', 'date'),
+     Input('management-end-date', 'date'),
+     Input('status-code-checklist', 'value')]
+)
+def update_error_ip_tables(start_date, end_date, status_codes):
+    if not start_date or not end_date:
+        return [], []
+    
+    if not status_codes or not ('4xx' in status_codes or '5xx' in status_codes):
+        return [], []
+    
+    # 4xx 에러 발생 IP 조회
+    data_4xx = []
+    if '4xx' in status_codes:
+        query_4xx = f"""
+        SELECT
+            ip,
+            COUNT(*) as request_count,
+            ANY_VALUE(geo) as geo
+        FROM
+            `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+        WHERE
+            DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
+            AND CAST(status_code AS INT64) BETWEEN 400 AND 499
+        GROUP BY
+            ip
+        ORDER BY
+            request_count DESC
+        LIMIT 10
+        """
+        
+        df_4xx = load_bigquery_data(query_4xx)
+        
+        if not df_4xx.empty:
+            for i, row in df_4xx.iterrows():
+                data_4xx.append({
+                    "rank": i + 1,
+                    "ip": row["ip"],
+                    "count": f"{int(row['request_count']):,}",
+                    "geo": row["geo"]
+                })
+    
+    # 5xx 에러 발생 IP 조회
+    data_5xx = []
+    if '5xx' in status_codes:
+        query_5xx = f"""
+        SELECT
+            ip,
+            COUNT(*) as request_count,
+            ANY_VALUE(geo) as geo
+        FROM
+            `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+        WHERE
+            DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
+            AND CAST(status_code AS INT64) BETWEEN 500 AND 599
+        GROUP BY
+            ip
+        ORDER BY
+            request_count DESC
+        LIMIT 10
+        """
+        
+        df_5xx = load_bigquery_data(query_5xx)
+        
+        if not df_5xx.empty:
+            for i, row in df_5xx.iterrows():
+                data_5xx.append({
+                    "rank": i + 1,
+                    "ip": row["ip"],
+                    "count": f"{int(row['request_count']):,}",
+                    "geo": row["geo"]
+                })
+    
+    return data_4xx, data_5xx
 
 # 페이지 레이아웃 정의
 layout = create_management_layout() 
