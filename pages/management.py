@@ -3,11 +3,20 @@ import dash_bootstrap_components as dbc
 from utils.utils import load_bigquery_data
 import pandas as pd
 import datetime
-import plotly.express as px
 import plotly.graph_objects as go
 import math
 
-# BigQuery에서 날짜 데이터 조회
+# 공통 상수 정의
+ORDERED_STATUS_CODES = ['1xx', '2xx', '3xx', '4xx', '5xx']
+COLOR_MAP = {
+    '1xx': '#9C27B0',  # 정보 응답 - 보라색
+    '2xx': '#66BB6A',  # 성공 - 녹색
+    '3xx': '#42A5F5',  # 리다이렉션 - 파란색
+    '4xx': '#FFA726',  # 클라이언트 오류 - 주황색
+    '5xx': '#EF5350'   # 서버 오류 - 빨간색
+}
+
+# 날짜 데이터 조회
 query_result = load_bigquery_data("""
 SELECT DISTINCT
   DATE(timestamp_utc) as date
@@ -21,15 +30,10 @@ ORDER BY
 min_date_str = '2019-01-01'  # 기본값
 max_date_str = datetime.date.today().strftime('%Y-%m-%d')  # 기본값
 
-# 날짜 데이터를 datetime.date 객체로 변환 및 범위 설정
 if not query_result.empty:
     query_result['date'] = pd.to_datetime(query_result['date']).dt.date
-    
-    # 최소 날짜와 최대 날짜 찾기
     min_date = query_result['date'].min()
     max_date = query_result['date'].max()
-    
-    # 날짜를 문자열로 변환 (YYYY-MM-DD 형식)
     min_date_str = min_date.strftime('%Y-%m-%d')
     max_date_str = max_date.strftime('%Y-%m-%d')
 
@@ -41,6 +45,26 @@ status_code_groups = [
     {'label': '4xx', 'value': '4xx', 'title': '클라이언트 오류'},
     {'label': '5xx', 'value': '5xx', 'title': '서버 오류'}
 ]
+
+# 초기 상태 코드 데이터 조회
+initial_status_query = f"""
+SELECT 
+    FLOOR(status_code/100)*100 AS status_group,
+    COUNT(*) as count
+FROM 
+    `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+WHERE 
+    DATE(timestamp_utc) BETWEEN '{min_date_str}' AND '{max_date_str}'
+GROUP BY 
+    status_group
+ORDER BY 
+    status_group
+"""
+initial_status_df = load_bigquery_data(initial_status_query)
+if not initial_status_df.empty:
+    initial_status_groups = [int(x) for x in initial_status_df['status_group'].tolist()]
+else:
+    initial_status_groups = []
 
 def create_management_layout():
     """관리 페이지 레이아웃을 생성합니다."""
@@ -72,14 +96,14 @@ def create_management_layout():
                             ], style={"display": "inline-block"}),
                         ], style={"display": "flex", "alignItems": "center", "marginTop": "5px"})
                     ], width=6),
-                    # 상태 코드 필터 (체크박스로 변경)
+                    # 상태 코드 필터
                     dbc.Col([
                         html.Label("HTTP 상태 코드", className="filter-label"),
                         html.Div([
                             dcc.Checklist(
                                 id='status-code-checklist',
                                 options=status_code_groups,
-                                value=['1xx', '2xx', '3xx', '4xx', '5xx'],  # 기본적으로 모든 옵션 선택
+                                value=ORDERED_STATUS_CODES,
                                 inline=True,
                                 className="status-code-checklist",
                                 inputStyle={"marginRight": "5px"},
@@ -134,14 +158,13 @@ def create_management_layout():
                 ])
             ], className="filter-container"),
             
-            # 메인 차트 섹션 - 상태 코드 분포 및 시간별 상태 코드
+            # 메인 차트 섹션
             html.Div([
                 dbc.Row([
                     # 상태 코드 분포 차트
                     dbc.Col([
                         html.Div([
                             html.H4("상태 코드 분포", style={"marginBottom": "5px"}),
-                            # 파이 차트 표시 옵션 추가
                             dbc.ButtonGroup([
                                 dbc.Button("로그 스케일", id="pie-log", color="primary", outline=True, size="sm", className="me-1", active=True),
                                 dbc.Button("일반", id="pie-normal", color="primary", outline=True, size="sm")
@@ -152,14 +175,12 @@ def create_management_layout():
                             type="circle",
                             children=dcc.Graph(id='status-distribution-chart')
                         ),
-                        # 파이 차트 표시 방식 저장용 (hidden)
                         dcc.Store(id='pie-chart-mode', data='log')
                     ], width=6),
                     # 시간별 상태 코드 차트
                     dbc.Col([
                         html.Div([
                             html.H4("시간별 상태 코드", style={"marginBottom": "5px"}),
-                            # 차트 표시 옵션 추가
                             dbc.ButtonGroup([
                                 dbc.Button("로그 스케일", id="scale-log", color="primary", outline=True, size="sm", className="me-1", active=True),
                                 dbc.Button("일반", id="scale-normal", color="primary", outline=True, size="sm", className="me-1"),
@@ -171,48 +192,16 @@ def create_management_layout():
                             type="circle",
                             children=dcc.Graph(id='hourly-status-chart')
                         ),
-                        # 차트 표시 방식 저장용 (hidden)
                         dcc.Store(id='hourly-chart-mode', data='log')
                     ], width=6)
                 ])
             ], className="main-container"),
-            
-            # 세부 정보 섹션 - 일별 요청 수
-            html.Div([
-                html.H4("일별 요청 수"),
-                dcc.Loading(
-                    id="loading-system-status",
-                    type="circle",
-                    children=dcc.Graph(id='system-status-chart')
-                )
-            ], className="detail-container")
         ], className="page-container"),
         
-        # 데이터 저장을 위한 숨겨진 div
+        # 데이터 저장용 숨겨진 div
         html.Div(id='status-codes-store', style={'display': 'none'})
     ])
 
-# 초기 상태 코드 데이터 조회 (앱 시작 시)
-initial_status_query = f"""
-SELECT 
-    FLOOR(status_code/100)*100 AS status_group,
-    COUNT(*) as count
-FROM 
-    `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
-WHERE 
-    DATE(timestamp_utc) BETWEEN '{min_date_str}' AND '{max_date_str}'
-GROUP BY 
-    status_group
-ORDER BY 
-    status_group
-"""
-initial_status_df = load_bigquery_data(initial_status_query)
-if not initial_status_df.empty:
-    initial_status_groups = [int(x) for x in initial_status_df['status_group'].tolist()]
-else:
-    initial_status_groups = []
-
-# 선택한 날짜 범위에 따라 상태 코드 데이터를 조회하는 콜백
 @callback(
     Output('status-codes-store', 'children'),
     [Input('management-start-date', 'date'),
@@ -220,10 +209,8 @@ else:
 )
 def query_status_codes(start_date, end_date):
     if not start_date or not end_date:
-        print(f"초기 상태 코드 그룹: {initial_status_groups}")
-        return str(initial_status_groups)  # 초기값 사용
+        return str(initial_status_groups)
     
-    # BigQuery에서 해당 기간의 상태 코드 데이터 조회
     query = f"""
     SELECT 
         FLOOR(status_code/100)*100 AS status_group,
@@ -240,21 +227,17 @@ def query_status_codes(start_date, end_date):
     
     status_df = load_bigquery_data(query)
     
-    # 결과를 JSON 형식으로 반환
     if not status_df.empty:
         status_groups = [int(x) for x in status_df['status_group'].tolist()]
-        print(f"조회된 상태 코드 그룹: {status_groups}")
         
-        # 1xx 상태 코드가 없는 경우 강제로 추가 (개발 시 테스트용)
+        # 1xx 상태 코드가 없는 경우 강제로 추가 (테스트용)
         if not any(sg for sg in status_groups if sg == 100):
-            print("1xx 상태 코드를 표시하기 위해 강제로 추가합니다")
             status_groups.append(100)
         
         return str(status_groups)
     
     return '[]'
 
-# 상태 코드 데이터에 따라 체크박스 옵션을 업데이트하는 콜백
 @callback(
     Output('status-code-checklist', 'options'),
     Input('status-codes-store', 'children')
@@ -262,7 +245,6 @@ def query_status_codes(start_date, end_date):
 def update_status_code_options(status_codes_json):
     try:
         if status_codes_json == '[]':
-            # 데이터가 없으면 모든 옵션을 비활성화
             return [
                 {'label': '1xx', 'value': '1xx', 'title': '정보 응답', 'disabled': True},
                 {'label': '2xx', 'value': '2xx', 'title': '성공', 'disabled': True},
@@ -271,21 +253,11 @@ def update_status_code_options(status_codes_json):
                 {'label': '5xx', 'value': '5xx', 'title': '서버 오류', 'disabled': True}
             ]
         
-        # 문자열을 리스트로 변환
         status_codes = eval(status_codes_json)
-        print(f"업데이트할 상태 코드 옵션: {status_codes}")
         
-        # 상태 코드 그룹 매핑
-        available_groups = []
-        for code in status_codes:
-            group = f"{code//100}xx"
-            available_groups.append(group)
+        available_groups = [f"{code//100}xx" for code in status_codes]
         
-        print(f"사용 가능한 그룹: {available_groups}")
-        
-        # 옵션 업데이트 - 존재하는 그룹은 활성화, 없는 그룹은 비활성화
         updated_options = []
-        
         for option in status_code_groups:
             if option['value'] in available_groups:
                 updated_options.append(option)
@@ -299,10 +271,8 @@ def update_status_code_options(status_codes_json):
         
         return updated_options
     except Exception as e:
-        print(f"상태 코드 옵션 업데이트 중 오류: {e}")
         return status_code_groups
 
-# 모두 선택/해제 버튼 콜백
 @callback(
     Output('status-code-checklist', 'value'),
     [Input('select-all-button', 'n_clicks'),
@@ -317,22 +287,15 @@ def update_checklist_selection(select_clicks, clear_clicks, options, current_val
     
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
     
-    # 활성화된 옵션만 필터링
     available_options = [opt['value'] for opt in options if not opt.get('disabled', False)]
     
-    # 정렬된 상태 코드 순서
-    ordered_status_codes = ['1xx', '2xx', '3xx', '4xx', '5xx']
-    
     if button_id == 'select-all-button':
-        # 모든 활성화된 옵션 선택 (정렬된 순서 유지)
-        return [code for code in ordered_status_codes if code in available_options]
+        return [code for code in ORDERED_STATUS_CODES if code in available_options]
     elif button_id == 'clear-all-button':
-        # 모든 선택 해제
         return []
     
     return current_values
 
-# 체크박스 값이 변경될 때 선택된 값 유지하는 콜백
 @callback(
     Output('status-code-checklist', 'value', allow_duplicate=True),
     [Input('status-code-checklist', 'options')],
@@ -341,120 +304,20 @@ def update_checklist_selection(select_clicks, clear_clicks, options, current_val
 )
 def update_selected_values(options, current_values):
     if not current_values:
-        # 선택된 값이 없으면 기본값 반환
-        ordered_status_codes = ['1xx', '2xx', '3xx', '4xx', '5xx']
-        return ordered_status_codes
+        return ORDERED_STATUS_CODES
     
-    # 사용 가능한 옵션 확인
     available_values = [opt['value'] for opt in options if not opt.get('disabled', False)]
     
-    # 정렬된 상태 코드 순서
-    ordered_status_codes = ['1xx', '2xx', '3xx', '4xx', '5xx']
-    
-    # 선택된 값을 정렬된 순서로 재정렬
     valid_values = []
-    for code in ordered_status_codes:
+    for code in ORDERED_STATUS_CODES:
         if code in current_values and code in available_values:
             valid_values.append(code)
     
-    # 선택된 값이 없으면 사용 가능한 모든 값 반환 (정렬된 순서로)
     if not valid_values and available_values:
-        return [code for code in ordered_status_codes if code in available_values]
+        return [code for code in ORDERED_STATUS_CODES if code in available_values]
     
     return valid_values
 
-# 일별 요청 수 차트 업데이트 콜백
-@callback(
-    Output('system-status-chart', 'figure'),
-    [Input('management-start-date', 'date'),
-     Input('management-end-date', 'date'),
-     Input('status-code-checklist', 'value')]
-)
-def update_system_status_chart(start_date, end_date, status_codes):
-    if not start_date or not end_date:
-        return go.Figure().update_layout(title="날짜를 선택해주세요")
-    
-    if not status_codes:
-        return go.Figure().update_layout(title="상태 코드를 선택해주세요")
-    
-    # 상태 코드 정렬
-    ordered_status_codes = ['1xx', '2xx', '3xx', '4xx', '5xx']
-    sorted_status_codes = [code for code in ordered_status_codes if code in status_codes]
-    
-    # 상태 코드 필터 조건 생성
-    status_filters = []
-    for code in sorted_status_codes:
-        status_group = int(code[0]) * 100  # 첫 번째 문자를 정수로 변환 후 100 곱함 (2xx -> 200)
-        status_filters.append(f"status_code BETWEEN {status_group} AND {status_group + 99}")
-    
-    # 1xx 상태 코드가 포함된 경우의 특별 처리
-    if '1xx' in sorted_status_codes and all(code != '1xx' for code in sorted_status_codes):
-        # 1xx만 선택된 경우 빈 데이터프레임 생성
-        df = pd.DataFrame(columns=['date', 'request_count'])
-        fig = go.Figure()
-        fig.add_annotation(
-            text="현재 1xx 상태 코드 데이터가 없습니다",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=16)
-        )
-        fig.update_layout(
-            title=f"일별 요청 수 ({', '.join(sorted_status_codes)})",
-            xaxis_title="날짜",
-            yaxis_title="요청 수",
-            template="plotly_white"
-        )
-        return fig
-    
-    status_filter = f"AND ({' OR '.join(status_filters)})" if status_filters else ""
-    
-    # 일별 요청 수 조회 쿼리
-    query = f"""
-    SELECT
-        DATE(timestamp_utc) as date,
-        COUNT(*) as request_count
-    FROM
-        `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
-    WHERE
-        DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
-        {status_filter}
-    GROUP BY
-        date
-    ORDER BY
-        date
-    """
-    
-    df = load_bigquery_data(query)
-    
-    if df.empty:
-        return go.Figure().update_layout(title="선택한 기간에 데이터가 없습니다")
-    
-    # 일별 요청 수 차트 생성 (막대 그래프)
-    fig = px.bar(
-        df, 
-        x='date', 
-        y='request_count', 
-        title=f"일별 요청 수 ({', '.join(sorted_status_codes)})",
-        labels={'date': '날짜', 'request_count': '요청 수'},
-        color_discrete_sequence=['#3366CC']
-    )
-    
-    fig.update_layout(
-        xaxis_title="날짜",
-        yaxis_title="요청 수",
-        hovermode="x unified",
-        template="plotly_white",
-        bargap=0.2,
-        margin=dict(t=80, b=20, l=20, r=20),
-        hoverlabel=dict(
-            bgcolor="white",
-            font_size=12
-        )
-    )
-    
-    return fig
-
-# 파이 차트 스케일 모드 버튼 콜백
 @callback(
     [Output("pie-normal", "active"),
      Output("pie-log", "active"),
@@ -472,10 +335,8 @@ def update_pie_chart_mode(normal_clicks, log_clicks, current_mode):
     elif ctx_triggered == "pie-log":
         return False, True, "log"
     
-    # 기본값 유지
     return False, True, "log"
 
-# 상태 코드 분포 차트 업데이트 콜백
 @callback(
     Output('status-distribution-chart', 'figure'),
     [Input('management-start-date', 'date'),
@@ -490,19 +351,16 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
     if not status_codes:
         return go.Figure().update_layout(title="상태 코드를 선택해주세요")
     
-    # 상태 코드 정렬
-    ordered_status_codes = ['1xx', '2xx', '3xx', '4xx', '5xx']
-    sorted_status_codes = [code for code in ordered_status_codes if code in status_codes]
+    sorted_status_codes = [code for code in ORDERED_STATUS_CODES if code in status_codes]
     
     # 상태 코드 필터 조건 생성
     status_filters = []
     for code in sorted_status_codes:
-        status_group = int(code[0]) * 100  # 첫 번째 문자를 정수로 변환 후 100 곱함 (2xx -> 200)
+        status_group = int(code[0]) * 100
         status_filters.append(f"status_code BETWEEN {status_group} AND {status_group + 99}")
     
     status_filter = f"AND ({' OR '.join(status_filters)})" if status_filters else ""
     
-    # 상태 코드별 분포 조회 쿼리 - 개별 상태 코드와 그룹 정보 함께 가져오기
     query = f"""
     SELECT
         status_code,
@@ -525,9 +383,7 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
         return go.Figure().update_layout(title="선택한 기간에 데이터가 없습니다")
     
     # 상태 코드 그룹별로 집계
-    df['status_group_name'] = df['status_group'].apply(
-        lambda x: f"{int(x//100)}xx"
-    )
+    df['status_group_name'] = df['status_group'].apply(lambda x: f"{int(x//100)}xx")
     
     # 그룹별 집계 데이터 생성
     group_df = df.groupby('status_group_name').agg(
@@ -543,19 +399,9 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
             details.append(f"상태 코드 {int(row['status_code'])}: {int(row['count'])}건")
         status_details[group] = "<br>".join(details)
     
-    # 그룹별 색상 매핑 정의
-    color_map = {
-        '1xx': '#9C27B0',  # 정보 응답 - 보라색
-        '2xx': '#66BB6A',  # 성공 - 녹색
-        '3xx': '#42A5F5',  # 리다이렉션 - 파란색
-        '4xx': '#FFA726',  # 클라이언트 오류 - 주황색
-        '5xx': '#EF5350'   # 서버 오류 - 빨간색
-    }
-    
     # 파이차트 생성
     fig = go.Figure()
     
-    # 선택한 상태 코드에 따라 파이 차트 생성
     # 상태 코드 그룹 이름 및 색상 목록
     labels = group_df['status_group_name'].tolist()
     
@@ -566,14 +412,11 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
     # 실제 차트에 사용할 값
     values = group_df['total_count'].tolist()
     
-    # 로그 스케일 적용 (로그 모드인 경우 시각화 목적으로만 사용)
+    # 로그 스케일 적용 (로그 모드인 경우)
     display_values = values.copy()
     if chart_mode == "log":
-        # 값이 0인 경우 1로 대체 (로그 스케일에서 0은 -Infinity가 됨)
         display_values = [max(1, val) for val in display_values]
-        # 로그 변환 적용 (base-10)
         display_values = [math.log10(val) for val in display_values]
-        # 값이 너무 작은 경우를 방지하기 위해 최소값 설정
         min_val = min(display_values)
         if min_val < 1:
             display_values = [val - min_val + 1 for val in display_values]
@@ -584,31 +427,27 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
         original_count = group_df.loc[group_df['status_group_name'] == group, 'total_count'].values[0]
         percentage = percentages[i]
         
-        if group in status_details:
-            detail_text = f"<br><br>세부 상태 코드:<br>{status_details[group]}"
-        else:
-            detail_text = ""
-            
+        detail_text = f"<br><br>세부 상태 코드:<br>{status_details[group]}" if group in status_details else ""
+        
         hover_texts.append(
             f"<b>{group}</b><br>총 건수: {original_count:,} ({percentage:.1f}%){detail_text}"
         )
     
-    colors = [color_map.get(group, '#CCCCCC') for group in labels]
+    colors = [COLOR_MAP.get(group, '#CCCCCC') for group in labels]
     
     # 파이 차트에 표시할 텍스트 생성
-    # 로그 모드에서도 실제 백분율 표시
     text_template = '%{label}<br>%{text}%'
     text_values = [f"{p:.1f}" for p in percentages]
     
     # 파이 차트 추가
     fig.add_trace(go.Pie(
         labels=labels,
-        values=display_values,  # 로그 스케일 변환 값 (시각화용)
-        text=text_values,  # 실제 백분율 (표시용)
+        values=display_values,
+        text=text_values,
         texttemplate=text_template,
         hovertemplate='%{customdata}<extra></extra>',
         customdata=hover_texts,
-        textinfo='label+text',  # text 필드를 사용
+        textinfo='label+text',
         marker_colors=colors,
         hole=0.4,
         sort=False,
@@ -620,7 +459,7 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
     # 차트 모드에 따른 제목 설정
     title_suffix = " (로그 스케일, 실제 백분율 표시)" if chart_mode == "log" else ""
     
-    # 제목 및 레이아웃 설정 - 정렬된 상태 코드 사용
+    # 제목 및 레이아웃 설정
     selected_codes_str = ', '.join(sorted_status_codes)
     fig.update_layout(
         title=f"상태 코드 분포 ({selected_codes_str}){title_suffix}",
@@ -633,31 +472,16 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
             y=1.02,
             xanchor="right",
             x=1
+        ),
+        margin=dict(t=80, b=30 if chart_mode == "log" else 20, l=20, r=20),
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=12
         )
     )
     
-    # 로그 스케일 모드인 경우 추가 여백과 안내 메시지
-    if chart_mode == "log":
-        fig.update_layout(
-            margin=dict(t=80, b=30, l=20, r=20),
-            hoverlabel=dict(
-                bgcolor="white",
-                font_size=12
-            )
-        )
-    else:
-        # 일반 모드에서도 여백과 호버 레이블 설정
-        fig.update_layout(
-            margin=dict(t=80, b=20, l=20, r=20),
-            hoverlabel=dict(
-                bgcolor="white",
-                font_size=12
-            )
-        )
-    
     return fig
 
-# 차트 스케일 모드 버튼 콜백
 @callback(
     [Output("scale-normal", "active"),
      Output("scale-log", "active"),
@@ -679,10 +503,8 @@ def update_chart_mode(normal_clicks, log_clicks, normalize_clicks, current_mode)
     elif ctx_triggered == "scale-normalize":
         return False, False, True, "percentage"
     
-    # 기본값 유지
     return False, True, False, "log"
 
-# 시간별 상태 코드 차트 업데이트 콜백
 @callback(
     Output('hourly-status-chart', 'figure'),
     [Input('management-start-date', 'date'),
@@ -697,18 +519,7 @@ def update_hourly_status_chart(start_date, end_date, status_codes, chart_mode):
     if not status_codes:
         return go.Figure().update_layout(title="상태 코드를 선택해주세요")
     
-    # 상태 코드 정렬
-    ordered_status_codes = ['1xx', '2xx', '3xx', '4xx', '5xx']
-    sorted_status_codes = [code for code in ordered_status_codes if code in status_codes]
-    
-    # 상태 코드 그룹별 색상 매핑 정의
-    color_map = {
-        '1xx': '#9C27B0',  # 정보 응답 - 보라색
-        '2xx': '#66BB6A',  # 성공 - 녹색
-        '3xx': '#42A5F5',  # 리다이렉션 - 파란색
-        '4xx': '#FFA726',  # 클라이언트 오류 - 주황색
-        '5xx': '#EF5350'   # 서버 오류 - 빨간색
-    }
+    sorted_status_codes = [code for code in ORDERED_STATUS_CODES if code in status_codes]
     
     # 모든 시간대에 대해 데이터 초기화 (0-23시)
     hour_range = list(range(24))
@@ -743,7 +554,6 @@ def update_hourly_status_chart(start_date, end_date, status_codes, chart_mode):
         
         # 쿼리 결과가 있으면 병합
         if not df.empty:
-            # 시간을 정수로 변환
             df['hour'] = df['hour'].astype(int)
             
             # 쿼리 결과와 기본 데이터프레임 병합
@@ -753,9 +563,8 @@ def update_hourly_status_chart(start_date, end_date, status_codes, chart_mode):
         # 모든 데이터 저장 (정규화용)
         all_data[code] = full_df
     
-    # 차트 모드에 따라 데이터 처리
+    # 차트 모드에 따라 데이터 처리 (백분율 모드)
     if chart_mode == "percentage" and len(all_data) > 1:
-        # 백분율 모드: 각 시간대별로 백분율로 표시
         for hour in hour_range:
             total_for_hour = sum(all_data[code].loc[all_data[code]['hour'] == hour, 'request_count'].values[0] for code in sorted_status_codes)
             if total_for_hour > 0:
@@ -778,7 +587,7 @@ def update_hourly_status_chart(start_date, end_date, status_codes, chart_mode):
                 x=df['hour'],
                 y=df['request_count'],
                 name=code,
-                marker_color=color_map.get(code, '#CCCCCC')
+                marker_color=COLOR_MAP.get(code, '#CCCCCC')
             ))
     
     if not has_data:
@@ -798,28 +607,18 @@ def update_hourly_status_chart(start_date, end_date, status_codes, chart_mode):
     # 제목 설정
     fig.update_layout(
         title=f"시간별 요청 수 ({', '.join(sorted_status_codes)}){title_suffix}",
-        barmode='stack' if chart_mode == "percentage" else 'group'
-    )
-    
-    # y축 로그 스케일 적용 (로그 모드인 경우)
-    yaxis_config = {
-        'title': y_axis_title,
-        'type': 'log' if chart_mode == "log" else 'linear'
-    }
-    
-    # 정규화 모드인 경우 y축 범위 설정
-    if chart_mode == "percentage":
-        yaxis_config['range'] = [0, 100]
-    
-    # x축 설정
-    fig.update_layout(
+        barmode='stack' if chart_mode == "percentage" else 'group',
         xaxis=dict(
             title="시간대",
             tickmode='array',
             tickvals=list(range(0, 24)),
             ticktext=[f"{h:02d}:00" for h in range(0, 24)]
         ),
-        yaxis=yaxis_config,
+        yaxis=dict(
+            title=y_axis_title,
+            type='log' if chart_mode == "log" else 'linear',
+            range=[0, 100] if chart_mode == "percentage" else None
+        ),
         hovermode="x unified",
         template="plotly_white",
         legend=dict(
@@ -829,23 +628,12 @@ def update_hourly_status_chart(start_date, end_date, status_codes, chart_mode):
             xanchor="right",
             x=1
         ),
-        margin=dict(t=80, b=20, l=20, r=20),
+        margin=dict(t=80, b=30 if chart_mode == "log" else 20, l=20, r=20),
         hoverlabel=dict(
             bgcolor="white",
             font_size=12
         )
     )
-    
-    # 로그 스케일 모드인 경우 안내 메시지 추가
-    if chart_mode == "log":
-        fig.update_layout(
-            margin=dict(t=80, b=30, l=20, r=20)  # 하단 여백 적당히 설정
-        )
-    else:
-        # 로그 스케일이 아닌 경우에도 여백 설정
-        fig.update_layout(
-            margin=dict(t=80, b=20, l=20, r=20)
-        )
     
     return fig
 
