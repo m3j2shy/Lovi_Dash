@@ -4,7 +4,7 @@
 
 ## 🚀 배포 주소
 
-https://lovi-569292430057.asia-northeast3.run.app
+https://lovi.my
 
 ## 📋 프로젝트 개요
 
@@ -14,7 +14,9 @@ https://lovi-569292430057.asia-northeast3.run.app
 - 반응형 사이드바 네비게이션
 
 ## 📊 데이터셋 출처
+
 이 프로젝트는 [Web Server Access Logs](https://www.kaggle.com/datasets/eliasdabbas/web-server-access-logs) 데이터셋을 사용합니다.
+
 - 출처: Kaggle
 - 제공자: Elias Dabbas
 - 라이센스: CC0: Public Domain
@@ -25,7 +27,7 @@ https://lovi-569292430057.asia-northeast3.run.app
 - **UI 컴포넌트**: Dash Bootstrap Components
 - **데이터베이스**: Google BigQuery
 - **배포**: Google Cloud Run
-- **CI/CD**: GitHub Actions, Google Cloud Build
+- **CI/CD**: Google Cloud Build
 - **버전 관리**: GitHub
 - **인프라**: Docker, Google Cloud Platform
 
