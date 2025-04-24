@@ -6,7 +6,7 @@ NAV_LINKS = [
     {"icon": "🔍", "label": "인기 키워드", "href": "/popular-keywords"},
     {"icon": "🛣️", "label": "유입 출처", "href": "/referrer"},
     {"icon": "🌍", "label": "지역", "href": "/region"},
-    {"icon": "⚙️", "label": "상태", "href": "/management"},
+    {"icon": "⚙️", "label": "관리", "href": "/management"},
     {"icon": "ℹ️", "label": "기타 페이지", "href": "/about"},
 ]
 
