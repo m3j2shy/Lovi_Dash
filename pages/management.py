@@ -66,6 +66,233 @@ if not initial_status_df.empty:
 else:
     initial_status_groups = []
 
+def create_error_ip_table(error_type):
+    """오류 IP 테이블 컴포넌트를 생성합니다."""
+    return html.Div([
+        html.H4(f"{error_type} 에러 발생 상위 10개 IP", style={"marginBottom": "10px"}),
+        dcc.Loading(
+            id=f"loading-{error_type}-ips",
+            type="circle",
+            children=dash_table.DataTable(
+                id=f"{error_type}-ips-table",
+                columns=[
+                    {"name": "순위", "id": "rank"},
+                    {"name": "IP 주소", "id": "ip"},
+                    {"name": "요청 수", "id": "count"},
+                    {"name": "국가/지역", "id": "geo"}
+                ],
+                style_table={"overflowX": "auto"},
+                style_cell={
+                    "textAlign": "left",
+                    "padding": "8px",
+                    "fontFamily": "Arial, sans-serif"
+                },
+                style_header={
+                    "backgroundColor": "#f8f9fa",
+                    "fontWeight": "bold",
+                    "textAlign": "center"
+                },
+                style_data_conditional=[
+                    {
+                        "if": {"row_index": "odd"},
+                        "backgroundColor": "#f8f9fa"
+                    }
+                ],
+                page_size=10
+            )
+        )
+    ])
+
+def create_error_search_section():
+    """로그 상세 검색 섹션을 생성합니다."""
+    return html.Div([
+        # 검색 필터
+        html.Div([
+            # 날짜 및 시간 범위
+            html.Label("조회 기간", style={"marginBottom": "5px"}),
+            html.Div([
+                # 시작 날짜/시간
+                html.Div([
+                    html.Label("시작", style={"fontSize": "0.9rem", "marginBottom": "5px"}),
+                    html.Div([
+                        html.Div([
+                            dcc.DatePickerSingle(
+                                id='log-search-start-date',
+                                date=min_date_str,
+                                display_format='YYYY-MM-DD',
+                                style={"width": "130px"}
+                            )
+                        ], style={
+                            "marginRight": "10px",
+                            "display": "inline-block"
+                        }),
+                        dbc.Input(
+                            id='log-search-start-time',
+                            type='time',
+                            value='00:00',
+                            style={
+                                "height": "46px",
+                                "padding": "6px 12px",
+                                "fontSize": "1rem"
+                            }
+                        )
+                    ], style={"display": "flex", "alignItems": "center"})
+                ], style={"marginRight": "30px"}),
+                # 종료 날짜/시간
+                html.Div([
+                    html.Label("종료", style={"fontSize": "0.9rem", "marginBottom": "5px"}),
+                    html.Div([
+                        html.Div([
+                            dcc.DatePickerSingle(
+                                id='log-search-end-date',
+                                date=max_date_str,
+                                display_format='YYYY-MM-DD',
+                                style={"width": "130px"}
+                            )
+                        ], style={
+                            "marginRight": "10px",
+                            "display": "inline-block"
+                        }),
+                        dbc.Input(
+                            id='log-search-end-time',
+                            type='time',
+                            value='23:59',
+                            style={
+                                "height": "46px",
+                                "padding": "6px 12px",
+                                "fontSize": "1rem"
+                            }
+                        )
+                    ], style={"display": "flex", "alignItems": "center"})
+                ])
+            ], style={"display": "flex", "marginBottom": "15px"}),
+            
+            # 검색 필드들
+            dbc.Row([
+                # IP 주소 검색
+                dbc.Col([
+                    html.Label("IP 주소", style={"fontSize": "0.9rem", "marginBottom": "5px"}),
+                    dbc.Input(
+                        id='log-search-ip',
+                        type='text',
+                        placeholder='예: 192.168.1.1',
+                        style={"marginBottom": "10px"}
+                    )
+                ], width=3),
+                # URL 검색
+                dbc.Col([
+                    html.Label("URL", style={"fontSize": "0.9rem", "marginBottom": "5px"}),
+                    dbc.Input(
+                        id='log-search-url',
+                        type='text',
+                        placeholder='예: /api/users',
+                        style={"marginBottom": "10px"}
+                    )
+                ], width=3),
+                # 국가/지역 검색
+                dbc.Col([
+                    html.Label("국가/지역", style={"fontSize": "0.9rem", "marginBottom": "5px"}),
+                    dbc.Input(
+                        id='log-search-geo',
+                        type='text',
+                        placeholder='예: Korea',
+                        style={"marginBottom": "10px"}
+                    )
+                ], width=3),
+                # User Agent 검색
+                dbc.Col([
+                    html.Label("User Agent", style={"fontSize": "0.9rem", "marginBottom": "5px"}),
+                    dbc.Input(
+                        id='log-search-user-agent',
+                        type='text',
+                        placeholder='예: Chrome, Bot',
+                        style={"marginBottom": "10px"}
+                    )
+                ], width=3)
+            ]),
+            
+            dbc.Button(
+                "검색",
+                id='log-search-button',
+                color="primary",
+                className="me-2"
+            )
+        ], style={
+            "padding": "20px",
+            "backgroundColor": "#f8f9fa",
+            "borderRadius": "8px",
+            "border": "1px solid #e9ecef",
+            "marginBottom": "20px"
+        }),
+        # 검색 결과 테이블
+        html.Div([
+            html.H4("검색 결과", style={"marginBottom": "10px"}),
+            dcc.Loading(
+                id="loading-log-search",
+                type="circle",
+                children=[
+                    html.Div(
+                        id="log-search-info",
+                        style={
+                            "marginBottom": "10px",
+                            "fontSize": "0.9rem",
+                            "color": "#666",
+                            "textAlign": "right"
+                        }
+                    ),
+                    dash_table.DataTable(
+                        id="log-search-table",
+                        columns=[
+                            {"name": "IP 주소", "id": "ip"},
+                            {"name": "상태 코드", "id": "status_code"},
+                            {"name": "요청 시간", "id": "timestamp"},
+                            {"name": "요청 URL", "id": "url"},
+                            {"name": "국가/지역", "id": "geo"},
+                            {"name": "HTTP 메서드", "id": "http_method"},
+                            {"name": "브라우저", "id": "user_browser"},
+                            {"name": "OS", "id": "user_os"},
+                            {"name": "모바일", "id": "user_is_mobile"},
+                            {"name": "봇", "id": "user_is_bot"}
+                        ],
+                        style_table={"overflowX": "auto"},
+                        style_cell={
+                            "textAlign": "left",
+                            "padding": "8px",
+                            "fontFamily": "Arial, sans-serif",
+                            "maxWidth": "200px",
+                            "whiteSpace": "normal",
+                            "textOverflow": "ellipsis"
+                        },
+                        style_header={
+                            "backgroundColor": "#f8f9fa",
+                            "fontWeight": "bold",
+                            "textAlign": "center"
+                        },
+                        style_data_conditional=[
+                            {
+                                "if": {"row_index": "odd"},
+                                "backgroundColor": "#f8f9fa"
+                            }
+                        ],
+                        page_size=10,
+                        page_current=0,
+                        page_action="custom",
+                        sort_action="custom",
+                        sort_mode="single",
+                        filter_action="none",
+                        css=[{
+                            'selector': '.dash-spreadsheet-container .dash-spreadsheet-inner td',
+                            'rule': 'font-family: Arial, sans-serif;'
+                        }, {
+                            'selector': '.dash-spreadsheet-container .dash-spreadsheet-inner .dash-spreadsheet-pagination',
+                            'rule': 'text-align: right;'
+                        }]
+                    )
+                ]
+            )
+        ])
+    ])
+
 def create_management_layout():
     """관리 페이지 레이아웃을 생성합니다."""
     return html.Div([
@@ -73,88 +300,27 @@ def create_management_layout():
         html.Div([
             # 필터 섹션
             html.Div([
-                dbc.Row([
-                    # 날짜 선택기
-                    dbc.Col([
-                        html.Label("날짜 범위", className="filter-label"),
+                # 날짜 선택기
+                html.Div([
+                    html.Label("날짜 범위", className="filter-label"),
+                    html.Div([
                         html.Div([
-                            html.Div([
-                                html.Label("시작 날짜:", style={"marginRight": "10px", "fontWeight": "normal", "fontSize": "0.9rem"}),
-                                dcc.DatePickerSingle(
-                                    id='management-start-date',
-                                    date=min_date_str,
-                                    display_format='YYYY-MM-DD'
-                                )
-                            ], style={"display": "inline-block", "marginRight": "15px"}),
-                            html.Div([
-                                html.Label("종료 날짜:", style={"marginRight": "10px", "fontWeight": "normal", "fontSize": "0.9rem"}),
-                                dcc.DatePickerSingle(
-                                    id='management-end-date',
-                                    date=max_date_str,
-                                    display_format='YYYY-MM-DD'
-                                )
-                            ], style={"display": "inline-block"}),
-                        ], style={"display": "flex", "alignItems": "center", "marginTop": "5px"})
-                    ], width=6),
-                    # 상태 코드 필터
-                    dbc.Col([
-                        html.Label("HTTP 상태 코드", className="filter-label"),
-                        html.Div([
-                            dcc.Checklist(
-                                id='status-code-checklist',
-                                options=status_code_groups,
-                                value=ORDERED_STATUS_CODES,
-                                inline=True,
-                                className="status-code-checklist",
-                                inputStyle={"marginRight": "5px"},
-                                labelStyle={
-                                    "marginRight": "15px",
-                                    "padding": "6px 10px",
-                                    "borderRadius": "25px",
-                                    "display": "inline-flex",
-                                    "alignItems": "center",
-                                    "fontWeight": "500"
-                                }
-                            ),
-                            html.Button(
-                                "모두 선택",
-                                id="select-all-button",
-                                className="select-button",
-                                style={
-                                    "marginLeft": "10px",
-                                    "fontSize": "0.8rem",
-                                    "padding": "3px 8px",
-                                    "backgroundColor": "#f8f9fa",
-                                    "border": "1px solid #dee2e6",
-                                    "borderRadius": "4px",
-                                    "cursor": "pointer"
-                                }
-                            ),
-                            html.Button(
-                                "선택 해제",
-                                id="clear-all-button",
-                                className="select-button",
-                                style={
-                                    "marginLeft": "5px",
-                                    "fontSize": "0.8rem",
-                                    "padding": "3px 8px",
-                                    "backgroundColor": "#f8f9fa",
-                                    "border": "1px solid #dee2e6",
-                                    "borderRadius": "4px",
-                                    "cursor": "pointer"
-                                }
+                            html.Label("시작 날짜:", style={"marginRight": "10px", "fontWeight": "normal", "fontSize": "0.9rem"}),
+                            dcc.DatePickerSingle(
+                                id='management-start-date',
+                                date=min_date_str,
+                                display_format='YYYY-MM-DD'
                             )
-                        ], style={
-                            "display": "flex",
-                            "alignItems": "center",
-                            "marginTop": "5px",
-                            "marginBottom": "15px",
-                            "padding": "8px 12px",
-                            "backgroundColor": "#f8f9fa",
-                            "borderRadius": "8px",
-                            "border": "1px solid #e9ecef"
-                        })
-                    ], width=6)
+                        ], style={"display": "inline-block", "marginRight": "15px"}),
+                        html.Div([
+                            html.Label("종료 날짜:", style={"marginRight": "10px", "fontWeight": "normal", "fontSize": "0.9rem"}),
+                            dcc.DatePickerSingle(
+                                id='management-end-date',
+                                date=max_date_str,
+                                display_format='YYYY-MM-DD'
+                            )
+                        ], style={"display": "inline-block"})
+                    ], style={"display": "flex", "alignItems": "center", "marginTop": "5px"})
                 ])
             ], className="filter-container"),
             
@@ -199,87 +365,16 @@ def create_management_layout():
             
             # 세부 정보 섹션
             html.Div([
+                html.H3("로그 상세 검색", style={"marginBottom": "20px"}),
+                create_error_search_section(),
                 html.Hr(style={"margin": "30px 0 20px 0"}),
                 html.H3("오류 발생 IP 분석", style={"marginBottom": "20px"}),
                 dbc.Row([
-                    dbc.Col([
-                        html.Div([
-                            html.H4("4xx 오류 발생 TOP 10 IP", style={"marginBottom": "10px"}),
-                            dcc.Loading(
-                                id="loading-4xx-ips",
-                                type="circle",
-                                children=dash_table.DataTable(
-                                    id="4xx-ips-table",
-                                    columns=[
-                                        {"name": "순위", "id": "rank"},
-                                        {"name": "IP 주소", "id": "ip"},
-                                        {"name": "요청 수", "id": "count"},
-                                        {"name": "국가/지역", "id": "geo"}
-                                    ],
-                                    style_table={"overflowX": "auto"},
-                                    style_cell={
-                                        "textAlign": "left",
-                                        "padding": "8px",
-                                        "fontFamily": "Arial, sans-serif"
-                                    },
-                                    style_header={
-                                        "backgroundColor": "#f8f9fa",
-                                        "fontWeight": "bold",
-                                        "textAlign": "center"
-                                    },
-                                    style_data_conditional=[
-                                        {
-                                            "if": {"row_index": "odd"},
-                                            "backgroundColor": "#f8f9fa"
-                                        }
-                                    ],
-                                    page_size=10
-                                )
-                            )
-                        ])
-                    ], width=6),
-                    dbc.Col([
-                        html.Div([
-                            html.H4("5xx 오류 발생 TOP 10 IP", style={"marginBottom": "10px"}),
-                            dcc.Loading(
-                                id="loading-5xx-ips",
-                                type="circle",
-                                children=dash_table.DataTable(
-                                    id="5xx-ips-table",
-                                    columns=[
-                                        {"name": "순위", "id": "rank"},
-                                        {"name": "IP 주소", "id": "ip"},
-                                        {"name": "요청 수", "id": "count"},
-                                        {"name": "국가/지역", "id": "geo"}
-                                    ],
-                                    style_table={"overflowX": "auto"},
-                                    style_cell={
-                                        "textAlign": "left",
-                                        "padding": "8px",
-                                        "fontFamily": "Arial, sans-serif"
-                                    },
-                                    style_header={
-                                        "backgroundColor": "#f8f9fa",
-                                        "fontWeight": "bold",
-                                        "textAlign": "center"
-                                    },
-                                    style_data_conditional=[
-                                        {
-                                            "if": {"row_index": "odd"},
-                                            "backgroundColor": "#f8f9fa"
-                                        }
-                                    ],
-                                    page_size=10
-                                )
-                            )
-                        ])
-                    ], width=6)
+                    dbc.Col([create_error_ip_table("4xx")], width=6),
+                    dbc.Col([create_error_ip_table("5xx")], width=6)
                 ])
-            ], className="detail-container"),
-        ], className="page-container"),
-        
-        # 데이터 저장용 숨겨진 div
-        html.Div(id='status-codes-store', style={'display': 'none'})
+            ], className="detail-container")
+        ], className="page-container")
     ])
 
 @callback(
@@ -418,29 +513,40 @@ def update_pie_chart_mode(normal_clicks, log_clicks, current_mode):
     return False, True, "log"
 
 @callback(
+    [Output("scale-normal", "active"),
+     Output("scale-log", "active"),
+     Output("scale-normalize", "active"),
+     Output("hourly-chart-mode", "data")],
+    [Input("scale-normal", "n_clicks"),
+     Input("scale-log", "n_clicks"),
+     Input("scale-normalize", "n_clicks")],
+    [State("hourly-chart-mode", "data")],
+    prevent_initial_call=True
+)
+def update_hourly_chart_mode(normal_clicks, log_clicks, normalize_clicks, current_mode):
+    ctx_triggered = ctx.triggered_id
+    
+    if ctx_triggered == "scale-normal":
+        return True, False, False, "normal"
+    elif ctx_triggered == "scale-log":
+        return False, True, False, "log"
+    elif ctx_triggered == "scale-normalize":
+        return False, False, True, "percentage"
+    
+    return False, True, False, "log"
+
+@callback(
     Output('status-distribution-chart', 'figure'),
     [Input('management-start-date', 'date'),
      Input('management-end-date', 'date'),
-     Input('status-code-checklist', 'value'),
      Input('pie-chart-mode', 'data')]
 )
-def update_status_distribution_chart(start_date, end_date, status_codes, chart_mode):
+def update_status_distribution_chart(start_date, end_date, pie_mode):
     if not start_date or not end_date:
-        return go.Figure().update_layout(title="날짜를 선택해주세요")
+        empty_fig = go.Figure().update_layout(title="날짜를 선택해주세요")
+        return empty_fig
     
-    if not status_codes:
-        return go.Figure().update_layout(title="상태 코드를 선택해주세요")
-    
-    sorted_status_codes = [code for code in ORDERED_STATUS_CODES if code in status_codes]
-    
-    # 상태 코드 필터 조건 생성
-    status_filters = []
-    for code in sorted_status_codes:
-        status_group = int(code[0]) * 100
-        status_filters.append(f"status_code BETWEEN {status_group} AND {status_group + 99}")
-    
-    status_filter = f"AND ({' OR '.join(status_filters)})" if status_filters else ""
-    
+    # 상태 코드 데이터 쿼리
     query = f"""
     SELECT
         status_code,
@@ -450,25 +556,68 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
         `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
     WHERE
         DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
-        {status_filter}
     GROUP BY
         status_code, status_group
-    ORDER BY
-        status_code
     """
     
-    df = load_bigquery_data(query)
+    try:
+        df = load_bigquery_data(query)
+        if df is None or df.empty:
+            empty_fig = go.Figure().update_layout(title="선택한 기간에 데이터가 없습니다")
+            return empty_fig
+        
+        return create_status_distribution_chart(df, ORDERED_STATUS_CODES, pie_mode)
+        
+    except Exception as e:
+        print(f"Error in update_status_distribution_chart: {str(e)}")
+        error_fig = go.Figure().update_layout(title=f"오류가 발생했습니다: {str(e)}")
+        return error_fig
+
+@callback(
+    Output('hourly-status-chart', 'figure'),
+    [Input('management-start-date', 'date'),
+     Input('management-end-date', 'date'),
+     Input('hourly-chart-mode', 'data')]
+)
+def update_hourly_status_chart(start_date, end_date, hourly_mode):
+    if not start_date or not end_date:
+        empty_fig = go.Figure().update_layout(title="날짜를 선택해주세요")
+        return empty_fig
     
-    if df.empty:
-        return go.Figure().update_layout(title="선택한 기간에 데이터가 없습니다")
+    # 시간별 데이터 쿼리
+    query = f"""
+    SELECT
+        EXTRACT(HOUR FROM timestamp_utc) as hour,
+        FLOOR(status_code/100)*100 AS status_group,
+        COUNT(*) as count
+    FROM
+        `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+    WHERE
+        DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
+    GROUP BY
+        hour, status_group
+    """
     
+    try:
+        df = load_bigquery_data(query)
+        if df is None or df.empty:
+            empty_fig = go.Figure().update_layout(title="선택한 기간에 데이터가 없습니다")
+            return empty_fig
+        
+        return create_hourly_status_chart(df, ORDERED_STATUS_CODES, hourly_mode)
+        
+    except Exception as e:
+        print(f"Error in update_hourly_status_chart: {str(e)}")
+        error_fig = go.Figure().update_layout(title=f"오류가 발생했습니다: {str(e)}")
+        return error_fig
+
+def create_status_distribution_chart(df, sorted_status_codes, chart_mode):
+    """상태 코드 분포 차트를 생성합니다."""
     # 상태 코드 그룹별로 집계
     df['status_group_name'] = df['status_group'].apply(lambda x: f"{int(x//100)}xx")
     
     # 그룹별 집계 데이터 생성
-    group_df = df.groupby('status_group_name').agg(
-        total_count=('count', 'sum')
-    ).reset_index()
+    group_df = df.groupby(['status_group_name', 'status_group'])['count'].sum().reset_index()
     
     # 각 그룹별 세부 상태 코드 정보 생성 (툴팁용)
     status_details = {}
@@ -476,7 +625,7 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
         group_codes = df[df['status_group_name'] == group]
         details = []
         for _, row in group_codes.iterrows():
-            details.append(f"상태 코드 {int(row['status_code'])}: {int(row['count'])}건")
+            details.append(f"상태 코드 {row['status_code']}: {int(row['count']):,}건")
         status_details[group] = "<br>".join(details)
     
     # 파이차트 생성
@@ -486,11 +635,11 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
     labels = group_df['status_group_name'].tolist()
     
     # 각 그룹의 백분율 계산 (표시용)
-    total = sum(group_df['total_count'])
-    percentages = [(count / total) * 100 for count in group_df['total_count']]
+    total = group_df['count'].sum()
+    percentages = [(count / total) * 100 for count in group_df['count']]
     
     # 실제 차트에 사용할 값
-    values = group_df['total_count'].tolist()
+    values = group_df['count'].tolist()
     
     # 로그 스케일 적용 (로그 모드인 경우)
     display_values = values.copy()
@@ -504,7 +653,7 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
     # 호버 텍스트 생성
     hover_texts = []
     for i, group in enumerate(labels):
-        original_count = group_df.loc[group_df['status_group_name'] == group, 'total_count'].values[0]
+        original_count = group_df.loc[group_df['status_group_name'] == group, 'count'].values[0]
         percentage = percentages[i]
         
         detail_text = f"<br><br>세부 상태 코드:<br>{status_details[group]}" if group in status_details else ""
@@ -537,14 +686,14 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
     ))
     
     # 차트 모드에 따른 제목 설정
-    title_suffix = " (로그 스케일, 실제 백분율 표시)" if chart_mode == "log" else ""
+    title_suffix = " (로그 스케일)" if chart_mode == "log" else ""
     
     # 제목 및 레이아웃 설정
     selected_codes_str = ', '.join(sorted_status_codes)
     fig.update_layout(
-        title=f"상태 코드 분포 ({selected_codes_str}){title_suffix}",
+        title=f"HTTP 상태 코드 분포{title_suffix}",
         showlegend=True,
-        legend_title="상태 코드 그룹",
+        legend_title="상태 코드",
         template="plotly_white",
         legend=dict(
             orientation="h",
@@ -562,134 +711,63 @@ def update_status_distribution_chart(start_date, end_date, status_codes, chart_m
     
     return fig
 
-@callback(
-    [Output("scale-normal", "active"),
-     Output("scale-log", "active"),
-     Output("scale-normalize", "active"),
-     Output("hourly-chart-mode", "data")],
-    [Input("scale-normal", "n_clicks"),
-     Input("scale-log", "n_clicks"),
-     Input("scale-normalize", "n_clicks")],
-    [State("hourly-chart-mode", "data")],
-    prevent_initial_call=True
-)
-def update_chart_mode(normal_clicks, log_clicks, normalize_clicks, current_mode):
-    ctx_triggered = ctx.triggered_id
-    
-    if ctx_triggered == "scale-normal":
-        return True, False, False, "normal"
-    elif ctx_triggered == "scale-log":
-        return False, True, False, "log"
-    elif ctx_triggered == "scale-normalize":
-        return False, False, True, "percentage"
-    
-    return False, True, False, "log"
-
-@callback(
-    Output('hourly-status-chart', 'figure'),
-    [Input('management-start-date', 'date'),
-     Input('management-end-date', 'date'),
-     Input('status-code-checklist', 'value'),
-     Input('hourly-chart-mode', 'data')]
-)
-def update_hourly_status_chart(start_date, end_date, status_codes, chart_mode):
-    if not start_date or not end_date:
-        return go.Figure().update_layout(title="날짜를 선택해주세요")
-    
-    if not status_codes:
-        return go.Figure().update_layout(title="상태 코드를 선택해주세요")
-    
-    sorted_status_codes = [code for code in ORDERED_STATUS_CODES if code in status_codes]
-    
+def create_hourly_status_chart(df, sorted_status_codes, chart_mode):
+    """시간별 상태 코드 차트를 생성합니다."""
     # 모든 시간대에 대해 데이터 초기화 (0-23시)
     hour_range = list(range(24))
     
-    # 다중 상태 코드 그룹의 경우 각 그룹별로 데이터 조회
+    # 상태 코드 그룹별로 데이터 준비
+    df['status_group_name'] = df['status_group'].apply(lambda x: f"{int(x//100)}xx")
+    
+    # 피벗 테이블 생성
+    pivot_df = df.pivot_table(
+        values='count',
+        index='hour',
+        columns='status_group_name',
+        fill_value=0
+    ).reset_index()
+    
+    # 누락된 시간대 추가
+    full_df = pd.DataFrame({'hour': hour_range})
+    pivot_df = pd.merge(full_df, pivot_df, on='hour', how='left').fillna(0)
+    
     fig = go.Figure()
-    all_data = {}  # 정규화를 위한 모든 데이터 저장
-    
-    for code in sorted_status_codes:
-        status_group = int(code[0]) * 100
-        
-        # 시간별 요청 수 조회 쿼리
-        query = f"""
-        SELECT
-            EXTRACT(HOUR FROM timestamp_utc) as hour,
-            COUNT(*) as request_count
-        FROM
-            `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
-        WHERE
-            DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
-            AND status_code BETWEEN {status_group} AND {status_group + 99}
-        GROUP BY
-            hour
-        ORDER BY
-            hour
-        """
-        
-        df = load_bigquery_data(query)
-        
-        # 결과 데이터가 모든 시간대를 포함하지 않을 수 있으므로 빈 데이터프레임으로 초기화
-        full_df = pd.DataFrame({'hour': hour_range, 'request_count': [0] * 24})
-        
-        # 쿼리 결과가 있으면 병합
-        if not df.empty:
-            df['hour'] = df['hour'].astype(int)
-            
-            # 쿼리 결과와 기본 데이터프레임 병합
-            for _, row in df.iterrows():
-                full_df.loc[full_df['hour'] == row['hour'], 'request_count'] = row['request_count']
-        
-        # 모든 데이터 저장 (정규화용)
-        all_data[code] = full_df
-    
-    # 차트 모드에 따라 데이터 처리 (백분율 모드)
-    if chart_mode == "percentage" and len(all_data) > 1:
-        for hour in hour_range:
-            total_for_hour = sum(all_data[code].loc[all_data[code]['hour'] == hour, 'request_count'].values[0] for code in sorted_status_codes)
-            if total_for_hour > 0:
-                for code in sorted_status_codes:
-                    count = all_data[code].loc[all_data[code]['hour'] == hour, 'request_count'].values[0]
-                    all_data[code].loc[all_data[code]['hour'] == hour, 'request_count'] = (count / total_for_hour) * 100
-    
-    # 데이터가 있는지 확인
-    has_data = False
     
     # 각 상태 코드 그룹에 대한 바 추가
     for code in sorted_status_codes:
-        df = all_data[code]
-        
-        if df['request_count'].sum() > 0:
-            has_data = True
+        group_name = f"{code[0]}xx"
+        if group_name in pivot_df.columns:
+            values = pivot_df[group_name]
             
-            # 각 상태 코드 그룹별로 바 추가
+            # 백분율 모드인 경우 데이터 변환
+            if chart_mode == "percentage":
+                row_sums = pivot_df[[col for col in pivot_df.columns if col != 'hour']].sum(axis=1)
+                values = (values / row_sums * 100).fillna(0)
+            
             fig.add_trace(go.Bar(
-                x=df['hour'],
-                y=df['request_count'],
-                name=code,
-                marker_color=COLOR_MAP.get(code, '#CCCCCC')
+                x=pivot_df['hour'],
+                y=values,
+                name=group_name,
+                marker_color=COLOR_MAP.get(group_name, '#CCCCCC')
             ))
-    
-    if not has_data:
-        return go.Figure().update_layout(title="선택한 기간에 데이터가 없습니다")
     
     # 차트 모드에 따른 제목 및 Y축 레이블 설정
     if chart_mode == "log":
         title_suffix = " (로그 스케일)"
-        y_axis_title = "요청 수 (로그 스케일)"
+        y_axis_title = "요청 수 (로그)"
     elif chart_mode == "percentage":
         title_suffix = " (백분율)"
-        y_axis_title = "백분율 (%)"
+        y_axis_title = "비율 (%)"
     else:
         title_suffix = ""
         y_axis_title = "요청 수"
     
     # 제목 설정
     fig.update_layout(
-        title=f"시간별 요청 수 ({', '.join(sorted_status_codes)}){title_suffix}",
+        title=f"시간대별 상태 코드 분포{title_suffix}",
         barmode='stack' if chart_mode == "percentage" else 'group',
         xaxis=dict(
-            title="시간대",
+            title="시간",
             tickmode='array',
             tickvals=list(range(0, 24)),
             ticktext=[f"{h:02d}:00" for h in range(0, 24)]
@@ -717,83 +795,183 @@ def update_hourly_status_chart(start_date, end_date, status_codes, chart_mode):
     
     return fig
 
+def get_error_ip_data(start_date, end_date, error_type):
+    """오류 IP 데이터를 조회합니다."""
+    if not start_date or not end_date:
+        return []
+    
+    query = f"""
+    SELECT
+        ip,
+        COUNT(*) as request_count,
+        ANY_VALUE(geo) as geo
+    FROM
+        `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+    WHERE
+        DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
+        AND CAST(status_code AS INT64) BETWEEN {error_type}00 AND {error_type}99
+    GROUP BY
+        ip
+    ORDER BY
+        request_count DESC
+    LIMIT 10
+    """
+    
+    df = load_bigquery_data(query)
+    data = []
+    
+    if not df.empty:
+        for i, row in df.iterrows():
+            data.append({
+                "rank": i + 1,
+                "ip": row["ip"],
+                "count": f"{int(row['request_count']):,}",
+                "geo": row["geo"]
+            })
+    
+    return data
+
 @callback(
     [Output('4xx-ips-table', 'data'),
      Output('5xx-ips-table', 'data')],
     [Input('management-start-date', 'date'),
-     Input('management-end-date', 'date'),
-     Input('status-code-checklist', 'value')]
+     Input('management-end-date', 'date')]
 )
-def update_error_ip_tables(start_date, end_date, status_codes):
+def update_error_ip_tables(start_date, end_date):
     if not start_date or not end_date:
         return [], []
     
-    if not status_codes or not ('4xx' in status_codes or '5xx' in status_codes):
-        return [], []
-    
-    # 4xx 에러 발생 IP 조회
-    data_4xx = []
-    if '4xx' in status_codes:
-        query_4xx = f"""
-        SELECT
-            ip,
-            COUNT(*) as request_count,
-            ANY_VALUE(geo) as geo
-        FROM
-            `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
-        WHERE
-            DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
-            AND CAST(status_code AS INT64) BETWEEN 400 AND 499
-        GROUP BY
-            ip
-        ORDER BY
-            request_count DESC
-        LIMIT 10
-        """
-        
-        df_4xx = load_bigquery_data(query_4xx)
-        
-        if not df_4xx.empty:
-            for i, row in df_4xx.iterrows():
-                data_4xx.append({
-                    "rank": i + 1,
-                    "ip": row["ip"],
-                    "count": f"{int(row['request_count']):,}",
-                    "geo": row["geo"]
-                })
-    
-    # 5xx 에러 발생 IP 조회
-    data_5xx = []
-    if '5xx' in status_codes:
-        query_5xx = f"""
-        SELECT
-            ip,
-            COUNT(*) as request_count,
-            ANY_VALUE(geo) as geo
-        FROM
-            `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
-        WHERE
-            DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
-            AND CAST(status_code AS INT64) BETWEEN 500 AND 599
-        GROUP BY
-            ip
-        ORDER BY
-            request_count DESC
-        LIMIT 10
-        """
-        
-        df_5xx = load_bigquery_data(query_5xx)
-        
-        if not df_5xx.empty:
-            for i, row in df_5xx.iterrows():
-                data_5xx.append({
-                    "rank": i + 1,
-                    "ip": row["ip"],
-                    "count": f"{int(row['request_count']):,}",
-                    "geo": row["geo"]
-                })
+    data_4xx = get_error_ip_data(start_date, end_date, '4')
+    data_5xx = get_error_ip_data(start_date, end_date, '5')
     
     return data_4xx, data_5xx
+
+@callback(
+    [Output('log-search-table', 'data'),
+     Output('log-search-info', 'children'),
+     Output('log-search-table', 'page_count')],
+    [Input('log-search-button', 'n_clicks'),
+     Input('log-search-table', 'page_current'),
+     Input('log-search-table', 'page_size'),
+     Input('log-search-table', 'sort_by')],
+    [State('log-search-start-date', 'date'),
+     State('log-search-start-time', 'value'),
+     State('log-search-end-date', 'date'),
+     State('log-search-end-time', 'value'),
+     State('log-search-ip', 'value'),
+     State('log-search-url', 'value'),
+     State('log-search-geo', 'value'),
+     State('log-search-user-agent', 'value')]
+)
+def update_log_search_table(n_clicks, page_current, page_size, sort_by, 
+                          start_date, start_time, end_date, end_time, 
+                          ip_filter, url_filter, geo_filter, user_agent_filter):
+    if not n_clicks:
+        return [], "", 0
+    
+    if not start_date or not end_date:
+        return [], "", 0
+    
+    # 날짜와 시간을 결합하여 timestamp 생성 (UTC 기준)
+    start_datetime = f"{start_date} {start_time}:00.000000 UTC"
+    end_datetime = f"{end_date} {end_time}:59.999999 UTC"
+    
+    # 검색 조건 생성
+    conditions = [
+        f"timestamp_utc >= '{start_datetime}'",
+        f"timestamp_utc <= '{end_datetime}'"
+    ]
+    
+    # 추가 검색 조건
+    if ip_filter:
+        conditions.append(f"LOWER(ip) LIKE LOWER('%{ip_filter}%')")
+    if url_filter:
+        conditions.append(f"LOWER(url) LIKE LOWER('%{url_filter}%')")
+    if geo_filter:
+        conditions.append(f"LOWER(geo) LIKE LOWER('%{geo_filter}%')")
+    if user_agent_filter:
+        conditions.append(f"""(
+            LOWER(user_browser) LIKE LOWER('%{user_agent_filter}%')
+            OR LOWER(user_os) LIKE LOWER('%{user_agent_filter}%')
+            OR LOWER(user_agent) LIKE LOWER('%{user_agent_filter}%')
+        )""")
+    
+    # WHERE 절 생성
+    where_clause = " AND ".join(conditions)
+    
+    # 정렬 조건
+    order_by = "timestamp_utc DESC"  # 기본 정렬
+    if sort_by:
+        sort = sort_by[0]
+        column = sort['column_id']
+        direction = "DESC" if sort['direction'] == 'desc' else "ASC"
+        
+        # 컬럼명 매핑
+        column_mapping = {
+            'timestamp': 'timestamp_utc',
+            'status_code': 'CAST(status_code AS INT64)',
+            'ip': 'ip',
+            'url': 'url',
+            'geo': 'geo',
+            'http_method': 'http_method',
+            'user_browser': 'user_browser',
+            'user_os': 'user_os',
+            'user_is_mobile': 'user_is_mobile',
+            'user_is_bot': 'user_is_bot'
+        }
+        
+        if column in column_mapping:
+            order_by = f"{column_mapping[column]} {direction}"
+    
+    try:
+        # 최근 1000개 데이터 조회
+        data_query = f"""
+        SELECT
+            ip,
+            status_code,
+            timestamp_utc as timestamp,
+            url,
+            geo,
+            http_method,
+            user_agent,
+            user_browser,
+            user_os,
+            user_is_mobile,
+            user_is_bot
+        FROM
+            `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+        WHERE
+            {where_clause}
+        ORDER BY
+            {order_by}
+        LIMIT 1000
+        """
+        
+        df = load_bigquery_data(data_query)
+        if df is None or df.empty:
+            return [], "검색 결과가 없습니다.", 0
+        
+        # 데이터 포맷팅
+        df['timestamp'] = pd.to_datetime(df['timestamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 현재 페이지의 데이터 추출
+        start_idx = page_current * page_size
+        end_idx = min((page_current + 1) * page_size, len(df))
+        current_page_data = df.iloc[start_idx:end_idx]
+        
+        # 페이지네이션 정보
+        total_count = len(df)
+        start_idx = page_current * page_size + 1
+        end_idx = min((page_current + 1) * page_size, total_count)
+        info_text = f"최근 {total_count:,}개 데이터 중 {start_idx:,} - {end_idx:,}건 표시"
+        
+        # 총 페이지 수 계산 (올림 처리)
+        page_count = (total_count + page_size - 1) // page_size
+        
+        return current_page_data.to_dict('records'), info_text, page_count
+    except Exception as e:
+        print(f"Error in update_log_search_table: {str(e)}")
+        return [], f"오류가 발생했습니다: {str(e)}", 0
 
 # 페이지 레이아웃 정의
 layout = create_management_layout() 
