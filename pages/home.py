@@ -6,6 +6,16 @@ import plotly.graph_objects as go
 import datetime
 import pandas as pd
 import plotly.express as px
+import math
+
+# 공통 상수 정의
+COLOR_MAP = {
+    '1xx': '#9C27B0',  # 정보 응답 - 보라색
+    '2xx': '#66BB6A',  # 성공 - 녹색
+    '3xx': '#42A5F5',  # 리다이렉션 - 파란색
+    '4xx': '#FFA726',  # 클라이언트 오류 - 주황색
+    '5xx': '#EF5350'   # 서버 오류 - 빨간색
+}
 
 # 날짜 데이터 조회
 query_result = load_bigquery_data("""
@@ -92,7 +102,7 @@ def update_region_map_home(_):
     ),
     base_data AS (
         SELECT 
-            TRIM(SPLIT(REGEXP_REPLACE(geo, r'[[:space:]]*\([^)]*\)', ''), ',')[OFFSET(0)]) AS country,
+            TRIM(SPLIT(REGEXP_REPLACE(geo, r'[[:space:]]*\\([^)]*\\)', ''), ',')[OFFSET(0)]) AS country,
             COUNT(*) as count
         FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
         WHERE 
@@ -161,12 +171,86 @@ def update_status_distribution_home(_):
         if df is None or df.empty:
             return go.Figure()
         
-        fig = create_status_distribution_chart(df, ['1xx', '2xx', '3xx', '4xx', '5xx'], 'normal')
+        # 상태 코드 그룹별로 집계
+        df['status_group_name'] = df['status_group'].apply(lambda x: f"{int(x//100)}xx")
+        group_df = df.groupby(['status_group_name', 'status_group'])['count'].sum().reset_index()
+        
+        # 각 그룹별 세부 상태 코드 정보 생성 (툴팁용)
+        status_details = {}
+        for group in group_df['status_group_name'].unique():
+            group_codes = df[df['status_group_name'] == group]
+            details = []
+            for _, row in group_codes.iterrows():
+                details.append(f"상태 코드 {row['status_code']}: {int(row['count']):,}건")
+            status_details[group] = "<br>".join(details)
+        
+        # 파이차트 생성
+        fig = go.Figure()
+        
+        # 상태 코드 그룹 이름 및 색상 목록
+        labels = group_df['status_group_name'].tolist()
+        
+        # 각 그룹의 백분율 계산 (표시용)
+        total = group_df['count'].sum()
+        percentages = [(count / total) * 100 for count in group_df['count']]
+        
+        # 로그 스케일 적용
+        log_values = [math.log10(max(1, val)) for val in group_df['count'].tolist()]
+        min_val = min(log_values)
+        if min_val < 1:
+            log_values = [val - min_val + 1 for val in log_values]
+        
+        # 호버 텍스트 생성
+        hover_texts = []
+        for i, group in enumerate(labels):
+            original_count = group_df.loc[group_df['status_group_name'] == group, 'count'].values[0]
+            percentage = percentages[i]
+            detail_text = f"<br><br>세부 상태 코드:<br>{status_details[group]}" if group in status_details else ""
+            hover_texts.append(f"<b>{group}</b><br>총 건수: {original_count:,} ({percentage:.1f}%){detail_text}")
+        
+        colors = [COLOR_MAP.get(group, '#CCCCCC') for group in labels]
+        
+        # 파이 차트에 표시할 텍스트 생성
+        text_template = '%{label}<br>%{text}%'
+        text_values = [f"{p:.1f}" for p in percentages]
+        
+        # 파이 차트 추가
+        fig.add_trace(go.Pie(
+            labels=labels,
+            values=log_values,
+            text=text_values,
+            texttemplate=text_template,
+            hovertemplate='%{customdata}<extra></extra>',
+            customdata=hover_texts,
+            textinfo='label+text',
+            marker_colors=colors,
+            hole=0.4,
+            sort=False,
+            direction='clockwise',
+            pull=[0.03] * len(labels),
+            textposition='inside'
+        ))
+        
         fig.update_layout(
+            title='상태 코드 분포 (최근 24시간, 로그 스케일)',
+            showlegend=True,
+            legend_title="상태 코드",
+            template="plotly_white",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            ),
             height=400,
-            margin=dict(t=40, b=20, l=20, r=20),
-            title='상태 코드 분포 (최근 24시간)'
+            margin=dict(t=80, b=30, l=20, r=20),
+            hoverlabel=dict(
+                bgcolor="white",
+                font_size=12
+            )
         )
+        
         return fig
         
     except Exception as e:
