@@ -293,10 +293,65 @@ def create_error_search_section():
         ])
     ])
 
+def create_status_code_cards():
+    """상태 코드 통계 카드를 생성합니다."""
+    return html.Div([
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3("2xx Status Codes", className="card-title text-success"),
+                        html.H2(
+                            id="2xx-count",
+                            className="card-text text-success",
+                            style={"fontSize": "3rem", "fontWeight": "bold"}
+                        )
+                    ])
+                ], className="mb-4 text-center")
+            ], width=3),
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3("3xx Status Codes", className="card-title text-primary"),
+                        html.H2(
+                            id="3xx-count",
+                            className="card-text text-primary",
+                            style={"fontSize": "3rem", "fontWeight": "bold"}
+                        )
+                    ])
+                ], className="mb-4 text-center")
+            ], width=3),
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3("4xx Status Codes", className="card-title text-warning"),
+                        html.H2(
+                            id="4xx-count",
+                            className="card-text text-warning",
+                            style={"fontSize": "3rem", "fontWeight": "bold"}
+                        )
+                    ])
+                ], className="mb-4 text-center")
+            ], width=3),
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3("5xx Status Codes", className="card-title text-danger"),
+                        html.H2(
+                            id="5xx-count",
+                            className="card-text text-danger",
+                            style={"fontSize": "3rem", "fontWeight": "bold"}
+                        )
+                    ])
+                ], className="mb-4 text-center")
+            ], width=3)
+        ])
+    ])
+
 def create_management_layout():
     """관리 페이지 레이아웃을 생성합니다."""
     return html.Div([
-        html.H2("관리"),
+        html.H2("로그 관리"),
         html.Div([
             # 필터 섹션
             html.Div([
@@ -326,6 +381,9 @@ def create_management_layout():
             
             # 메인 차트 섹션
             html.Div([
+                # 상태 코드 카드 섹션
+                create_status_code_cards(),
+                
                 dbc.Row([
                     # 상태 코드 분포 차트
                     dbc.Col([
@@ -972,6 +1030,51 @@ def update_log_search_table(n_clicks, page_current, page_size, sort_by,
     except Exception as e:
         print(f"Error in update_log_search_table: {str(e)}")
         return [], f"오류가 발생했습니다: {str(e)}", 0
+
+@callback(
+    [Output("2xx-count", "children"),
+     Output("3xx-count", "children"),
+     Output("4xx-count", "children"),
+     Output("5xx-count", "children")],
+    [Input('management-start-date', 'date'),
+     Input('management-end-date', 'date')]
+)
+def update_status_code_counts(start_date, end_date):
+    if not start_date or not end_date:
+        return "0", "0", "0", "0"
+    
+    query = f"""
+    SELECT
+        FLOOR(status_code/100)*100 AS status_group,
+        COUNT(*) as count
+    FROM
+        `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+    WHERE
+        DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
+    GROUP BY
+        status_group
+    ORDER BY
+        status_group
+    """
+    
+    try:
+        df = load_bigquery_data(query)
+        if df is None or df.empty:
+            return "0", "0", "0", "0"
+        
+        # 상태 코드 그룹별 카운트 추출
+        counts = {int(row['status_group']): f"{int(row['count']):,}" for _, row in df.iterrows()}
+        
+        return (
+            counts.get(200, "0"),  # 2xx
+            counts.get(300, "0"),  # 3xx
+            counts.get(400, "0"),  # 4xx
+            counts.get(500, "0")   # 5xx
+        )
+        
+    except Exception as e:
+        print(f"Error in update_status_code_counts: {str(e)}")
+        return "0", "0", "0", "0"
 
 # 페이지 레이아웃 정의
 layout = create_management_layout() 
