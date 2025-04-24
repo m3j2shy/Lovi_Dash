@@ -14,7 +14,7 @@ def create_sidebar():
             html.Div([
                 dbc.NavLink(
                     html.Img(
-                        src="assets/image.webp",
+                        src="assets/lovi-logo.gif",
                         alt="Lovi Logo",
                         className="sidebar-logo"
                     ),
