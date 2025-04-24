@@ -1,5 +1,9 @@
 # <img src="assets/hamster.png" width="24" height="24" alt="Hamster"> <img src="assets/rabbit.png" width="24" height="24" alt="Rabbit"> Lovi <img src="assets/t-rex.png" width="24" height="24" alt="T-Rex"> <img src="assets/spouting-whale.png" width="24" height="24" alt="Whale">
 
+<p align="center">
+  <img src="assets/lovi-logo.gif" height="100" alt="Lovi Logo">
+</p>
+
 귀여운 웹 로그 대시보드 애플리케이션입니다.
 
 ## 🚀 배포 주소
