@@ -22,7 +22,12 @@ def create_sidebar():
                     active="exact",
                     className="mb-4"
                 ),
-                html.H3("🐶🐹🐱🐰", className="text-center mb-4"),
+                html.Div([
+                    html.Img(src="assets/hamster.png", alt="Hamster", style={"width": "24px", "height": "24px", "margin": "0 5px"}),
+                    html.Img(src="assets/rabbit.png", alt="Rabbit", style={"width": "24px", "height": "24px", "margin": "0 5px"}),
+                    html.Img(src="assets/t-rex.png", alt="T-Rex", style={"width": "24px", "height": "24px", "margin": "0 5px"}),
+                    html.Img(src="assets/spouting-whale.png", alt="Whale", style={"width": "24px", "height": "24px", "margin": "0 5px"})
+                ], className="text-center mb-4"),
                 html.Hr(),
                 dbc.Nav(
                     [
