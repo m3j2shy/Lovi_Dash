@@ -8,7 +8,7 @@ from components.sidebar import create_sidebar
 from utils import create_404_page
 from constants import PAGE_MODULES
 
-from pages import home, traffic, visitor_analysis, popular_keywords, referrer, region, management, about
+from pages import home, traffic, visitor_analysis, referrer, region, management, about
 
 # 개발/배포 환경 구분
 HOSTNAME = socket.gethostname()
