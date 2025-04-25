@@ -115,15 +115,17 @@ def get_unique_users_per_day(min_date_str, max_date_str):
 
 # FIG
 HEIGHT = 450
-def fig_traffic_per_day(result, mode):
+def fig_traffic_per_day(min_date_str, max_date_str, mode):
+    result = get_traffic_per_day(min_date_str, max_date_str)
+    result = result.rename(columns={'traffic_sum': '트래픽 수'})
     if mode == 'bar':
         fig = px.bar(
             result,
             x='day',
-            y='traffic_sum',
-            color='traffic_sum',  # 트래픽 수에 따른 색상 그라데이션
+            y='트래픽 수',
+            color='트래픽 수',  # 트래픽 수에 따른 색상 그라데이션
             color_continuous_scale='Viridis',  # 색상 스케일
-            text='traffic_sum'  # 바 위에 값 표시
+            text='트래픽 수'  # 바 위에 값 표시
         )
 
         fig.update_traces(
@@ -178,7 +180,7 @@ def fig_traffic_per_day(result, mode):
         fig = px.line(
             result,
             x='day',
-            y='traffic_sum',
+            y='트래픽 수',
             title='날짜 별 트래픽 총합',
             markers=True,
             color_discrete_sequence=['#3498db'],  # 파란색 계열
@@ -242,14 +244,16 @@ def fig_traffic_per_day(result, mode):
   
     return fig
 
-def fig_traffic_per_hour(result, mode):
+def fig_traffic_per_hour(min_date_str, max_date_str, mode):
+    result = get_traffic_per_hour(min_date_str, max_date_str)
+    result = result.rename(columns={'traffic_sum': '트래픽 수'})
     if mode == 'bar':
         fig = px.bar(result,
             x='hour_to_24',
-            y='traffic_sum',
-            color='traffic_sum',
+            y='트래픽 수',
+            color='트래픽 수',
             color_continuous_scale='Viridis',
-            text='traffic_sum')
+            text='트래픽 수')
         
         fig.update_traces(
             texttemplate='%{y:,.3s}',  # 천 단위 구분자 추가
@@ -303,7 +307,7 @@ def fig_traffic_per_hour(result, mode):
         fig = px.line(
             result,
             x='hour_to_24',
-            y='traffic_sum',
+            y='트래픽 수',
             markers=True,
             color_discrete_sequence=['#3498db'],  # 파란색 계열
             line_shape='spline'  # 부드러운 곡선
@@ -365,18 +369,23 @@ def fig_traffic_per_hour(result, mode):
         )
     return fig
 
-def fig_traffic_per_day_compare_users(traffic_per_day, unique_users_per_day):
+def fig_traffic_per_day_compare_users(min_date_str, max_date_str):
+    
+    traffic_per_day = get_traffic_per_day(min_date_str, max_date_str)
+    unique_users_per_day = get_unique_users_per_day(min_date_str, max_date_str)
     df = pd.merge(traffic_per_day, unique_users_per_day, on='day', how='left')
     
     # 그룹 바 차트 생성
+    df = df.rename(columns={
+        'traffic_sum': '트래픽 수',
+        'users': '방문자 수'
+    })
     fig = px.bar(
         df,
         x='day',
-        y=['traffic_sum', 'users'],
+        y=['트래픽 수', '방문자 수'],
         barmode='group',
-        labels={'traffic_sum': '트래픽', 'users': '사용자 수'},
         color_discrete_sequence=['#3498db', '#2ecc71'],  # 트래픽과 사용자 수에 대한 색상 지정
-        title='일별 트래픽 및 사용자 수 추이'
     )
 
     # 레이아웃 업데이트
@@ -384,14 +393,6 @@ def fig_traffic_per_day_compare_users(traffic_per_day, unique_users_per_day):
         height=HEIGHT,
         plot_bgcolor='rgba(0,0,0,0)',  # 배경 투명
         paper_bgcolor='rgba(0,0,0,0)',  # 배경 투명
-        title={
-            'text': '일별 트래픽 및 사용자 수 추이',
-            'y': 0.95,
-            'x': 0.5,
-            'xanchor': 'center',
-            'yanchor': 'top',
-            'font': dict(size=20, color='#2c3e50')
-        },
         xaxis=dict(
             title='날짜',
             showgrid=True,
@@ -403,7 +404,7 @@ def fig_traffic_per_day_compare_users(traffic_per_day, unique_users_per_day):
             dtick=86400000  # 1일을 밀리초로 표현
         ),
         yaxis=dict(
-            title='수량',
+            title='트래픽 수',
             showgrid=True,
             gridcolor='rgba(128, 128, 128, 0.2)',
             zerolinecolor='rgba(128, 128, 128, 0.2)',
@@ -442,14 +443,14 @@ def fig_traffic_per_day_compare_users(traffic_per_day, unique_users_per_day):
     )
     return fig
 
-def fig_traffic_avg_per_hour(result):
+def fig_traffic_avg_per_hour(min_date_str, max_date_str):
+    result = get_traffic_avg_per_hour(min_date_str, max_date_str)
     # 라인 차트 생성
     fig = px.line(
         result,
         x='hour_to_24',
         y='avg_traffic',
         markers=True,
-        title='시간대별 평균 트래픽',
         labels={'hour_to_24': '시간', 'avg_traffic': '평균 트래픽'},
         line_shape='spline',  # 부드러운 곡선
         color_discrete_sequence=['#3498db']  # 파란색 계열
@@ -460,14 +461,6 @@ def fig_traffic_avg_per_hour(result):
         height=HEIGHT,
         plot_bgcolor='rgba(0,0,0,0)',  # 배경 투명
         paper_bgcolor='rgba(0,0,0,0)',  # 배경 투명
-        title={
-            'text': '시간대별 평균 트래픽',
-            'y': 0.95,
-            'x': 0.5,
-            'xanchor': 'center',
-            'yanchor': 'top',
-            'font': dict(size=20, color='#2c3e50')
-        },
         xaxis=dict(
             title='시간(24H)',
             showgrid=True,
