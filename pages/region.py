@@ -46,8 +46,8 @@ def country_to_iso3(country_name):
 query = f"""
 WITH base_data AS (
   SELECT 
-    TRIM(SPLIT(REGEXP_REPLACE(geo, r'\s*\([^)]*\)', ''), ',')[OFFSET(0)]) AS country,
-    TRIM(SPLIT(REGEXP_REPLACE(geo, r'\s*\([^)]*\)', ''), ',')[OFFSET(1)]) AS city,
+    TRIM(SPLIT(REGEXP_REPLACE(geo, r'[[:space:]]*\([^)]*\)', ''), ',')[OFFSET(0)]) AS country,
+    TRIM(SPLIT(REGEXP_REPLACE(geo, r'[[:space:]]*\([^)]*\)', ''), ',')[OFFSET(1)]) AS city,
     day,
     user_is_bot
   FROM `{project_id}.{dataset}.{table}`
