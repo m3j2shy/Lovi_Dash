@@ -13,7 +13,7 @@ unique_users_per_day = tu.get_unique_users_per_day(min_date_str, max_date_str)
 traffic_per_day_compare_users_fig = tu.fig_traffic_per_day_compare_users(traffic_per_day, unique_users_per_day)
 traffic_avg_per_hour = tu.get_traffic_avg_per_hour(min_date_str, max_date_str)
 traffic_avg_per_hour_fig = tu.fig_traffic_avg_per_hour(traffic_avg_per_hour)
-traffic_predict_fig = tu.fig_traffic_predict(min_date_str, max_date_str)
+# traffic_predict_fig = tu.fig_traffic_predict(min_date_str, max_date_str)
 # 트래픽 분석 페이지 레이아웃 생성
 def create_traffic_layout():
     return html.Div([
@@ -82,7 +82,7 @@ def create_traffic_layout():
                 # 중간
                 dbc.Row([
                     dbc.Col([
-                        html.H4("날짜 별 실제 사용자 수 비교"),
+                        html.H4("날짜 별 실제 방문자 수 비교"),
                         dcc.Loading(
                             id="loading-traffic-compare-users",
                             type="circle",
@@ -100,27 +100,27 @@ def create_traffic_layout():
                 ])
             ], className="detail-container"),
 
-            html.Div([
-                # 하단
-                html.H4("트래픽 예측"),
-                html.P("최대 48시간 이내의 트래픽을 예측할 수 있습니다."),
-                dbc.Alert(
-                    html.Span("추천 예측 기간: 날짜 범위의 25~50%"),
-                    color="primary",
-                ),
-                dbc.InputGroup(
-                    [
-                        dbc.Input(id='input-traffic-predict-date', type='number', min=1, max=48, step=1, placeholder="예측 시간", value=48
-                                    , style={'display': 'inline', 'marginRight': '10px'}),
-                        dbc.Button("예측", id="btn-traffic-predict", color="primary", size="sm"),
-                    ]
-                ),
-                dcc.Loading(
-                    id="loading-traffic-avg",
-                    type="circle",
-                    children=dcc.Graph(id='chart-traffic-predict', figure=traffic_predict_fig)
-                )
-            ], className="detail-container")
+            # html.Div([
+            #     # 하단
+            #     html.H4("트래픽 예측"),
+            #     html.P("최대 48시간 이내의 트래픽을 예측할 수 있습니다."),
+            #     dbc.Alert(
+            #         html.Span("추천 예측 기간: 날짜 범위의 25~50%"),
+            #         color="primary",
+            #     ),
+            #     dbc.InputGroup(
+            #         [
+            #             dbc.Input(id='input-traffic-predict-date', type='number', min=1, max=48, step=1, placeholder="예측 시간", value=48
+            #                         , style={'display': 'inline', 'marginRight': '10px'}),
+            #             dbc.Button("예측", id="btn-traffic-predict", color="primary", size="sm"),
+            #         ]
+            #     ),
+            #     dcc.Loading(
+            #         id="loading-traffic-avg",
+            #         type="circle",
+            #         children=dcc.Graph(id='chart-traffic-predict', figure=traffic_predict_fig)
+            #     )
+            # ], className="detail-container")
         ], className="page-container")
     ])
 
@@ -132,7 +132,7 @@ layout = create_traffic_layout()
     Output('chart-traffic-hour', 'figure', allow_duplicate=True),
     Output('chart-traffic-day-compare-users', 'figure', allow_duplicate=True),
     Output('chart-traffic-avg', 'figure', allow_duplicate=True),
-    Output('chart-traffic-predict', 'figure', allow_duplicate=True),
+    # Output('chart-traffic-predict', 'figure', allow_duplicate=True),
     Output('btn-traffic-day-bar', 'active', allow_duplicate=True),
     Output('btn-traffic-day-line', 'active', allow_duplicate=True),
     Output('btn-traffic-hour-bar', 'active', allow_duplicate=True),
@@ -154,9 +154,9 @@ def update_traffic_chart(start_date, end_date):
     traffic_avg_per_hour = tu.get_traffic_avg_per_hour(start_date, end_date)
     traffic_avg_per_hour_fig = tu.fig_traffic_avg_per_hour(traffic_avg_per_hour)
 
-    traffic_predict_fig = tu.fig_traffic_predict(start_date, end_date)
+    # traffic_predict_fig = tu.fig_traffic_predict(start_date, end_date)
 
-    return traffic_per_day_fig, traffic_per_hour_fig, traffic_per_day_compare_users_fig, traffic_avg_per_hour_fig, traffic_predict_fig, True, False, True, False
+    return traffic_per_day_fig, traffic_per_hour_fig, traffic_per_day_compare_users_fig, traffic_avg_per_hour_fig, True, False, True, False
 
 
 # 상단
@@ -195,33 +195,33 @@ def update_traffic_hour_chart(n_clicks_hour_bar, n_clicks_hour_line):
         return traffic_per_hour_fig, False, True
     
 # 하단
-@callback(
-    Output('btn-traffic-predict', 'disabled', allow_duplicate=True),
-    Input('input-traffic-predict-date', 'value'),
-    prevent_initial_call=True
-)
-def update_traffic_predict_date(value):
-    if value:
-        if 1 <= int(value) <= 48:
-            return False
-    return True
+# @callback(
+#     Output('btn-traffic-predict', 'disabled', allow_duplicate=True),
+#     Input('input-traffic-predict-date', 'value'),
+#     prevent_initial_call=True
+# )
+# def update_traffic_predict_date(value):
+#     if value:
+#         if 1 <= int(value) <= 48:
+#             return False
+#     return True
 
-@callback(
-    Output('chart-traffic-predict', 'figure', allow_duplicate=True),
-    Input('btn-traffic-predict', 'n_clicks'),
-    State('input-traffic-predict-date', 'value'),
-    prevent_initial_call=True
-)
-def update_traffic_predict(n_clicks, predict_date):
-    if predict_date is None:
-        predict_date = 24  # Default value if None
-    try:
-        predict_date = int(predict_date)
-        if not 1 <= predict_date <= 48:
-            return traffic_predict_fig
-        if n_clicks > 0:
-            traffic_predict_fig = tu.fig_traffic_predict(min_date_str, max_date_str, predict_date)
-            return traffic_predict_fig
-    except (ValueError, TypeError):
-        return traffic_predict_fig
-    return traffic_predict_fig
+# @callback(
+#     Output('chart-traffic-predict', 'figure', allow_duplicate=True),
+#     Input('btn-traffic-predict', 'n_clicks'),
+#     State('input-traffic-predict-date', 'value'),
+#     prevent_initial_call=True
+# )
+# def update_traffic_predict(n_clicks, predict_date):
+#     if predict_date is None:
+#         predict_date = 24  # Default value if None
+#     try:
+#         predict_date = int(predict_date)
+#         if not 1 <= predict_date <= 48:
+#             return traffic_predict_fig
+#         if n_clicks > 0:
+#             traffic_predict_fig = tu.fig_traffic_predict(min_date_str, max_date_str, predict_date)
+#             return traffic_predict_fig
+#     except (ValueError, TypeError):
+#         return traffic_predict_fig
+#     return traffic_predict_fig

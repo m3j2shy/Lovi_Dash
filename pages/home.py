@@ -42,6 +42,14 @@ def create_home_layout():
     return html.Div([
         html.H2("대시보드"),
         html.Div([
+            html.Div([
+                html.H4("최근 24시간 트래픽 추이"),
+                dcc.Loading(
+                    id="loading-traffic-chart",
+                    type="circle",
+                    children=dcc.Graph(id='traffic-chart')
+                )
+            ], className="chart-container"),
             dbc.Row([
                 dbc.Col([
                     html.Div([
@@ -256,5 +264,95 @@ def update_status_distribution_home(_):
     except Exception as e:
         print(f"Error in update_status_distribution_home: {str(e)}")
         return go.Figure()
+
+@callback(
+    Output('traffic-chart', 'figure'),
+    Input('traffic-chart', 'id')
+)
+def update_traffic_chart(_):
+    query = """
+    WITH latest_date AS (
+        SELECT DATE(MAX(timestamp_utc)) as max_date
+        FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+    )
+    SELECT
+        EXTRACT(HOUR FROM timestamp_utc) as hour_to_24,
+        COUNT(*) as count
+    FROM
+        `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+    WHERE
+        DATE(timestamp_utc) = (SELECT max_date FROM latest_date)
+    GROUP BY
+        hour_to_24
+    ORDER BY
+        hour_to_24
+    """
+    df = load_bigquery_data(query)
+    if df.empty:
+        return go.Figure()
+    
+    # 트래픽 바 차트 생성
+    fig = px.bar(
+        df,
+        x='hour_to_24',
+        y='count',
+        title='최근 24시간 트래픽 추이',
+        labels={'hour_to_24': '시간', 'count': '트래픽 수'},
+        color='count',  # 트래픽 수에 따른 색상 그라데이션
+        color_continuous_scale='Viridis',  # 색상 스케일
+        text='count'  # 바 위에 값 표시
+    )
+
+    # 레이아웃 업데이트
+    fig.update_layout(
+        autosize=True,
+        height=400,
+        margin=dict(l=0, r=0, t=40, b=0),
+        plot_bgcolor='rgba(0,0,0,0)',  # 배경 투명
+        paper_bgcolor='rgba(0,0,0,0)',  # 배경 투명
+        title={
+            'text': '최근 24시간 트래픽 추이',
+            'y': 0.95,
+            'x': 0.5,
+            'xanchor': 'center',
+            'yanchor': 'top',
+            'font': dict(size=20, color='#2c3e50')
+        },
+        xaxis=dict(
+            title='시간(24H)',
+            showgrid=True,
+            gridcolor='rgba(128, 128, 128, 0.2)',
+            zerolinecolor='rgba(128, 128, 128, 0.2)',
+            tickfont=dict(size=12, color='#2c3e50')
+        ),
+        yaxis=dict(
+            title='트래픽 수',
+            showgrid=True,
+            gridcolor='rgba(128, 128, 128, 0.2)',
+            zerolinecolor='rgba(128, 128, 128, 0.2)',
+            tickfont=dict(size=12, color='#2c3e50')
+        ),
+        hovermode='x unified',  # 호버 모드 설정
+        hoverlabel=dict(
+            bgcolor='white',
+            font_size=12,
+            font_family='Arial'
+        )
+    )
+
+    # 바 스타일링
+    fig.update_traces(
+        texttemplate='%{text:,}',  # 천 단위 구분자 추가
+        textposition='outside',
+        hovertemplate='시간: %{x}<br>트래픽: %{y:,}<extra></extra>',  # 호버 템플릿
+        marker=dict(
+            line=dict(
+                width=1,
+                color='rgba(0,0,0,0.2)'
+            )
+        )
+    )
+
+    return fig
 
 layout = create_home_layout() 
