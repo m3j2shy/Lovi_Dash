@@ -5,15 +5,14 @@ import pandas as pd
 import plotly.graph_objects as go
 
 min_date_str, max_date_str = tu.get_date_range()
-traffic_per_day = tu.get_traffic_per_day(min_date_str, max_date_str)
-traffic_per_day_fig = tu.fig_traffic_per_day(traffic_per_day, 'bar')
-traffic_per_hour = tu.get_traffic_per_hour(min_date_str, max_date_str)
-traffic_per_hour_fig = tu.fig_traffic_per_hour(traffic_per_hour, 'bar')
-unique_users_per_day = tu.get_unique_users_per_day(min_date_str, max_date_str)
-traffic_per_day_compare_users_fig = tu.fig_traffic_per_day_compare_users(traffic_per_day, unique_users_per_day)
-traffic_avg_per_hour = tu.get_traffic_avg_per_hour(min_date_str, max_date_str)
-traffic_avg_per_hour_fig = tu.fig_traffic_avg_per_hour(traffic_avg_per_hour)
+start_date = min_date_str
+end_date = max_date_str
+traffic_per_day_fig = tu.fig_traffic_per_day(start_date, end_date, 'bar')
+traffic_per_hour_fig = tu.fig_traffic_per_hour(start_date, end_date, 'bar')
+traffic_per_day_compare_users_fig = tu.fig_traffic_per_day_compare_users(start_date, end_date)
+traffic_avg_per_hour_fig = tu.fig_traffic_avg_per_hour(start_date, end_date)
 # traffic_predict_fig = tu.fig_traffic_predict(min_date_str, max_date_str)
+
 # 트래픽 분석 페이지 레이아웃 생성
 def create_traffic_layout():
     return html.Div([
@@ -141,18 +140,18 @@ layout = create_traffic_layout()
      Input('traffic-end-date', 'date')],
     prevent_initial_call=True
 )
-def update_traffic_chart(start_date, end_date):
-    traffic_per_day = tu.get_traffic_per_day(start_date, end_date)
-    traffic_per_day_fig = tu.fig_traffic_per_day(traffic_per_day, 'bar')
+def update_traffic_chart(s, e):
+    global start_date, end_date
+    start_date = s
+    end_date = e
+    
+    traffic_per_day_fig = tu.fig_traffic_per_day(start_date, end_date, 'bar')
 
-    traffic_per_hour = tu.get_traffic_per_hour(start_date, end_date)
-    traffic_per_hour_fig = tu.fig_traffic_per_hour(traffic_per_hour, 'bar')
+    traffic_per_hour_fig = tu.fig_traffic_per_hour(start_date, end_date, 'bar')
 
-    unique_users_per_day = tu.get_unique_users_per_day(start_date, end_date)
-    traffic_per_day_compare_users_fig = tu.fig_traffic_per_day_compare_users(traffic_per_day, unique_users_per_day)
+    traffic_per_day_compare_users_fig = tu.fig_traffic_per_day_compare_users(start_date, end_date)
 
-    traffic_avg_per_hour = tu.get_traffic_avg_per_hour(start_date, end_date)
-    traffic_avg_per_hour_fig = tu.fig_traffic_avg_per_hour(traffic_avg_per_hour)
+    traffic_avg_per_hour_fig = tu.fig_traffic_avg_per_hour(start_date, end_date)
 
     # traffic_predict_fig = tu.fig_traffic_predict(start_date, end_date)
 
@@ -166,15 +165,15 @@ def update_traffic_chart(start_date, end_date):
     Output('btn-traffic-day-line', 'active', allow_duplicate=True)],
     [Input('btn-traffic-day-bar', 'n_clicks'),
      Input('btn-traffic-day-line', 'n_clicks')],
-     prevent_initial_call=True
+    prevent_initial_call=True
 )
 def update_traffic_day_chart(n_clicks_day_bar, n_clicks_day_line):
     ctx = callback_context
     if ctx.triggered[0]['prop_id'] == 'btn-traffic-day-bar.n_clicks':
-        traffic_per_day_fig = tu.fig_traffic_per_day(traffic_per_day, 'bar')
+        traffic_per_day_fig = tu.fig_traffic_per_day(start_date, end_date, 'bar')
         return traffic_per_day_fig, True, False
     elif ctx.triggered[0]['prop_id'] == 'btn-traffic-day-line.n_clicks':
-        traffic_per_day_fig = tu.fig_traffic_per_day(traffic_per_day, 'line')
+        traffic_per_day_fig = tu.fig_traffic_per_day(start_date, end_date, 'line')
         return traffic_per_day_fig, False, True
 
 @callback(
@@ -188,10 +187,10 @@ def update_traffic_day_chart(n_clicks_day_bar, n_clicks_day_line):
 def update_traffic_hour_chart(n_clicks_hour_bar, n_clicks_hour_line):
     ctx = callback_context
     if ctx.triggered[0]['prop_id'] == 'btn-traffic-hour-bar.n_clicks':
-        traffic_per_hour_fig = tu.fig_traffic_per_hour(traffic_per_hour, 'bar')
+        traffic_per_hour_fig = tu.fig_traffic_per_hour(start_date, end_date, 'bar')
         return traffic_per_hour_fig, True, False
     elif ctx.triggered[0]['prop_id'] == 'btn-traffic-hour-line.n_clicks':
-        traffic_per_hour_fig = tu.fig_traffic_per_hour(traffic_per_hour, 'line')
+        traffic_per_hour_fig = tu.fig_traffic_per_hour(start_date, end_date, 'line')
         return traffic_per_hour_fig, False, True
     
 # 하단
