@@ -1,12 +1,12 @@
 import dash_bootstrap_components as dbc
-from dash import Dash, html, dcc, Output, Input, callback, no_update
+from dash import Dash, html, dcc, Output, Input, callback
 import pandas as pd
 import plotly.express as px
 import os
-import pandas_gbq
 from dotenv import load_dotenv
 import plotly.graph_objects as go
 import numpy as np
+from utils.utils import load_bigquery_data, get_bigquery_config
 
 # 환경변수 로드
 load_dotenv()
@@ -15,13 +15,63 @@ app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
 # BigQuery 설정
-project_id = os.getenv('GCP_PROJECT_ID')
-dataset = os.getenv('BIGQUERY_DATASET')
-table = os.getenv('BIGQUERY_TABLE')
+config = get_bigquery_config()
+project_id = config['project_id']
+dataset = config['dataset']
+table = config['table']
+
+# 색상 테마
+COLOR_SCHEME = {
+    'total': '#6c757d',      # 전체 - 회색
+    'direct': '#ff7f0e',     # 직접 접속 - 주황색
+    'social': '#1f77b4',     # 소셜 미디어 - 파란색
+    'search': '#2ca02c',     # 검색 엔진 - 초록색
+    'others': '#d62728',     # 기타 - 빨간색
+    '직접 접속': '#ff7f0e',  # 직접 접속 - 주황색
+    '소셜 미디어': '#1f77b4', # 소셜 미디어 - 파란색
+    '검색 엔진': '#2ca02c',   # 검색 엔진 - 초록색
+    '기타': '#d62728',       # 기타 - 빨간색
+    'background': '#f8f9fa',  # 배경색
+    'text': '#2c3e50'        # 텍스트 색상
+}
 
 #load_data
 DEFAULT_LIMIT = 10000
 
+# 로딩 컴포넌트
+loading_component = dbc.Spinner(
+    html.Div(id="loading-output"),
+    color="primary",
+    type="grow",
+    fullscreen=True
+)
+
+# 에러 메시지 컴포넌트
+error_alert = dbc.Alert(
+    "데이터를 불러오는 중 오류가 발생했습니다. 다시 시도해주세요.",
+    id="error-message",
+    color="danger",
+    dismissable=True,
+    is_open=False
+)
+
+def get_date_range():
+    """DB에서 날짜 범위를 조회합니다."""
+    try:
+        query = f"""
+        SELECT 
+            MIN(DATE(timestamp_utc)) as min_date,
+            MAX(DATE(timestamp_utc)) as max_date
+        FROM `{project_id}.{dataset}.{table}`
+        """
+        
+        df = load_bigquery_data(query)
+        
+        if df is not None and not df.empty:
+            return df['min_date'].iloc[0], df['max_date'].iloc[0]
+        return None, None
+    except Exception as e:
+        return None, None
 
 def load_referrer_data(start_date=None, end_date=None, limit=DEFAULT_LIMIT):
     """유입 경로 분석을 위한 데이터를 로드합니다.
@@ -58,22 +108,19 @@ def load_referrer_data(start_date=None, end_date=None, limit=DEFAULT_LIMIT):
         if limit is not None:
             query += f"\nLIMIT {limit}"
         
-        # 데이터 로드
-        df = pandas_gbq.read_gbq(query, project_id=project_id)
+        # utils.py의 load_bigquery_data 함수 사용
+        df = load_bigquery_data(query)
         
-        # timestamp_utc를 datetime으로 변환
-        if 'timestamp_utc' in df.columns:
-            df['timestamp_utc'] = pd.to_datetime(df['timestamp_utc'])
+        if df is not None and not df.empty:
+            # timestamp_utc를 datetime으로 변환
+            if 'timestamp_utc' in df.columns:
+                df['timestamp_utc'] = pd.to_datetime(df['timestamp_utc'])
         
         return df
     except Exception as e:
         print(f"데이터 로드 중 오류 발생: {str(e)}")
         return None
 
-
-
-    #함수들
-    
 # 유입 채널 분류 정의
 REFERRER_CHANNELS = {
     'social': [
@@ -173,44 +220,596 @@ def filter_data(df, start_date=None, end_date=None, channel=None):
     
     return filtered_df
 
-if __name__ == '__main__':
-    print("데이터 로드 중...")
-    df = load_referrer_data()
-    
-    if df is not None:
-        print(f"\n분석 기간: {df['timestamp_utc'].min().date()} ~ {df['timestamp_utc'].max().date()}")
-        analysis_results = analyze_referrer_data(df)
+def load_referrer_counts(start_date, end_date, channel='all'):
+    """선택된 기간과 채널의 유입 수를 계산합니다."""
+    try:
+        # 기본 쿼리
+        base_query = f"""
+        SELECT 
+            COUNT(*) as total_count,
+            COUNTIF(referrer_domain IS NULL OR referrer_domain = '') as direct_count,
+            COUNTIF(referrer_domain LIKE '%facebook.com%' OR referrer_domain LIKE '%instagram.com%' OR referrer_domain LIKE '%twitter.com%' OR referrer_domain LIKE '%linkedin.com%') as social_count,
+            COUNTIF(referrer_domain LIKE '%google.com%' OR referrer_domain LIKE '%naver.com%' OR referrer_domain LIKE '%daum.net%' OR referrer_domain LIKE '%bing.com%') as search_count
+        FROM `{project_id}.{dataset}.{table}`
+        WHERE DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
+        """
         
-        if analysis_results:
-            print("\n1. 일별 유입 수:")
-            print(analysis_results['daily_stats'])
+        df = load_bigquery_data(base_query)
+        
+        if df is not None and not df.empty:
+            if channel == 'all':
+                return df['total_count'].iloc[0]
+            elif channel == '직접 접속':
+                return df['direct_count'].iloc[0]
+            elif channel == '소셜 미디어':
+                return df['social_count'].iloc[0]
+            elif channel == '검색 엔진':
+                return df['search_count'].iloc[0]
+            else:  # 기타
+                return df['total_count'].iloc[0] - (df['direct_count'].iloc[0] + df['social_count'].iloc[0] + df['search_count'].iloc[0])
+        return 0
+    except Exception as e:
+        return 0
+
+def create_referrer_layout():
+    """유입 경로 분석 페이지 레이아웃을 생성합니다."""
+    # DB에서 날짜 범위 조회
+    min_date, max_date = get_date_range()
+    
+    if min_date is None or max_date is None:
+        return None
+
+    # 필터 컴포넌트
+    filters = dbc.Card(
+        dbc.CardBody([
+            html.H4("필터", className="card-title"),
+            dbc.Row([
+                dbc.Col([
+                    html.Label("기간 선택"),
+                    dcc.DatePickerRange(
+                        id='date-range',
+                        start_date=min_date,
+                        end_date=max_date,
+                        min_date_allowed=min_date,
+                        max_date_allowed=max_date,
+                        display_format='YYYY-MM-DD'
+                    )
+                ], width=6),
+                dbc.Col([
+                    html.Label("유입 채널"),
+                    dcc.Dropdown(
+                        id='channel-filter',
+                        options=[
+                            {'label': '전체', 'value': 'all'},
+                            {'label': '직접 접속', 'value': '직접 접속'},
+                            {'label': '소셜 미디어', 'value': '소셜 미디어'},
+                            {'label': '검색 엔진', 'value': '검색 엔진'},
+                            {'label': '기타', 'value': '기타'}
+                        ],
+                        value='all',
+                        clearable=False
+                    )
+                ], width=6),
+            ])
+        ]), 
+        className="mb-3"
+    )
+
+    # 주요 지표 카드
+    metrics_cards = dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4("전체 유입 수", className="text-center mb-0", style={"color": COLOR_SCHEME['total']}),
+                    html.H2(
+                        id='total-referrers-metric',
+                        className="text-center display-4 font-weight-bold mb-0",
+                        style={"color": COLOR_SCHEME['total']}
+                    ),
+                ])
+            ], className="mb-3")
+        ], width=12),
+    ])
+
+    return dbc.Container([
+        html.H1("유입 경로 분석 대시보드", className="my-4"),
+        error_alert,
+        loading_component,
+        filters,
+        metrics_cards,
+        
+        # 상단 섹션: 일별 유입 수 그래프
+        dbc.Card(
+            dbc.CardBody([
+                html.H4("일별 유입 수", className="card-title"),
+                dcc.Loading(
+                    id="loading-daily-referrers",
+                    type="circle",
+                    children=dcc.Graph(id='daily-referrers-graph')
+                )
+            ]),
+            className="mb-3"
+        ),
+        
+        # 중간 섹션: TOP 10 유입 경로와 채널별 비율
+        dbc.Row([
+            # 좌측: TOP 10 유입 경로 (막대그래프)
+            dbc.Col([
+                dbc.Card(
+                    dbc.CardBody([
+                        html.H4("TOP 10 유입 경로", className="card-title"),
+                        dcc.Loading(
+                            id="loading-top-referrers",
+                            type="circle",
+                            children=dcc.Graph(id='top-referrers-graph')
+                        )
+                    ])
+                )
+            ], width=8),
             
-            print("\n2. 주요 유입 도메인:")
-            print(analysis_results['domain_stats'])
+            # 우측: 채널별 비율 (파이차트)
+            dbc.Col([
+                dbc.Card(
+                    dbc.CardBody([
+                        html.H4("유입 채널 분포", className="card-title"),
+                        dcc.Loading(
+                            id="loading-channel-distribution",
+                            type="circle",
+                            children=dcc.Graph(id='channel-distribution')
+                        )
+                    ])
+                )
+            ], width=4),
+        ], className="mb-3"),
+        
+        # 하단 섹션: 유입 URL 분포
+        dbc.Card(
+            dbc.CardBody([
+                html.H4("유입 URL 분포", className="card-title"),
+                dcc.Loading(
+                    id="loading-url-distribution",
+                    type="circle",
+                    children=dcc.Graph(id='url-distribution')
+                )
+            ]),
+            className="mb-3"
+        ),
+    ], fluid=True)
+
+@callback(
+    Output('total-referrers-metric', 'children'),
+    [Input('date-range', 'start_date'),
+     Input('date-range', 'end_date'),
+     Input('channel-filter', 'value')]
+)
+def update_total_referrers(start_date, end_date, channel):
+    """전체 유입 수를 업데이트합니다."""
+    if not start_date or not end_date:
+        return "0"
+    
+    count = load_referrer_counts(start_date, end_date, channel)
+    return f"{count:,}"
+
+def load_daily_referrer_stats(start_date, end_date, channel='all'):
+    """선택된 기간의 일별 유입 통계를 계산합니다."""
+    try:
+        # 기본 쿼리
+        base_query = f"""
+        WITH daily_stats AS (
+            SELECT 
+                DATE(timestamp_utc) as visit_date,
+                COUNT(*) as total_count,
+                COUNTIF(referrer_domain IS NULL OR referrer_domain = '') as direct_count,
+                COUNTIF(referrer_domain LIKE '%facebook.com%' OR referrer_domain LIKE '%instagram.com%' OR referrer_domain LIKE '%twitter.com%' OR referrer_domain LIKE '%linkedin.com%') as social_count,
+                COUNTIF(referrer_domain LIKE '%google.com%' OR referrer_domain LIKE '%naver.com%' OR referrer_domain LIKE '%daum.net%' OR referrer_domain LIKE '%bing.com%') as search_count,
+                COUNT(*) - (
+                    COUNTIF(referrer_domain IS NULL OR referrer_domain = '') +
+                    COUNTIF(referrer_domain LIKE '%facebook.com%' OR referrer_domain LIKE '%instagram.com%' OR referrer_domain LIKE '%twitter.com%' OR referrer_domain LIKE '%linkedin.com%') +
+                    COUNTIF(referrer_domain LIKE '%google.com%' OR referrer_domain LIKE '%naver.com%' OR referrer_domain LIKE '%daum.net%' OR referrer_domain LIKE '%bing.com%')
+                ) as others_count
+            FROM `{project_id}.{dataset}.{table}`
+            WHERE DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
+            GROUP BY visit_date
+        )
+        SELECT 
+            visit_date,
+            direct_count,
+            social_count,
+            search_count,
+            others_count
+        FROM daily_stats
+        ORDER BY visit_date
+        """
+        
+        df = load_bigquery_data(base_query)
+        
+        if df is not None and not df.empty:
+            return {
+                'dates': df['visit_date'].astype(str).tolist(),
+                'direct': df['direct_count'].tolist(),
+                'social': df['social_count'].tolist(),
+                'search': df['search_count'].tolist(),
+                'others': df['others_count'].tolist()
+            }
+        return None
+    except Exception as e:
+        return None
+
+@callback(
+    Output('daily-referrers-graph', 'figure'),
+    [Input('date-range', 'start_date'),
+     Input('date-range', 'end_date'),
+     Input('channel-filter', 'value')]
+)
+def update_daily_referrers_graph(start_date, end_date, channel):
+    """일별 유입 수 그래프를 업데이트합니다."""
+    if not start_date or not end_date:
+        return go.Figure()
+    
+    stats = load_daily_referrer_stats(start_date, end_date, channel)
+    
+    if stats is None:
+        return go.Figure()
+    
+    fig = go.Figure()
+    
+    if channel == 'all':
+        # 모든 채널을 색상별로 표시
+        fig.add_trace(go.Scatter(
+            x=stats['dates'],
+            y=stats['direct'],
+            name='직접 접속',
+            mode='lines+markers',
+            line=dict(color=COLOR_SCHEME['직접 접속']),
+            marker=dict(color=COLOR_SCHEME['직접 접속'])
+        ))
+        fig.add_trace(go.Scatter(
+            x=stats['dates'],
+            y=stats['social'],
+            name='소셜 미디어',
+            mode='lines+markers',
+            line=dict(color=COLOR_SCHEME['소셜 미디어']),
+            marker=dict(color=COLOR_SCHEME['소셜 미디어'])
+        ))
+        fig.add_trace(go.Scatter(
+            x=stats['dates'],
+            y=stats['search'],
+            name='검색 엔진',
+            mode='lines+markers',
+            line=dict(color=COLOR_SCHEME['검색 엔진']),
+            marker=dict(color=COLOR_SCHEME['검색 엔진'])
+        ))
+        fig.add_trace(go.Scatter(
+            x=stats['dates'],
+            y=stats['others'],
+            name='기타',
+            mode='lines+markers',
+            line=dict(color=COLOR_SCHEME['기타']),
+            marker=dict(color=COLOR_SCHEME['기타'])
+        ))
+    else:
+        # 선택된 채널만 표시
+        channel_data = {
+            '직접 접속': stats['direct'],
+            '소셜 미디어': stats['social'],
+            '검색 엔진': stats['search'],
+            '기타': stats['others']
+        }
+        fig.add_trace(go.Scatter(
+            x=stats['dates'],
+            y=channel_data[channel],
+            name=channel,
+            mode='lines+markers',
+            line=dict(color=COLOR_SCHEME[channel]),
+            marker=dict(color=COLOR_SCHEME[channel])
+        ))
+    
+    fig.update_layout(
+        title='일별 유입 수',
+        xaxis_title='날짜',
+        yaxis_title='유입 수',
+        plot_bgcolor=COLOR_SCHEME['background'],
+        paper_bgcolor=COLOR_SCHEME['background'],
+        font=dict(color=COLOR_SCHEME['text']),
+        margin=dict(l=50, r=50, t=50, b=50),
+        hovermode='x unified',
+        yaxis=dict(
+            type='log',
+            title='유입 수 (로그 스케일)',
+            showgrid=True,
+            gridcolor='rgba(0,0,0,0.1)'
+        )
+    )
+    
+    return fig
+
+def load_top_referrers(start_date, end_date, channel='all'):
+    """선택된 기간의 TOP 유입 경로를 계산합니다."""
+    try:
+        # 기본 쿼리
+        base_query = f"""
+        WITH referrer_stats AS (
+            SELECT 
+                referrer_domain,
+                COUNT(*) as count
+            FROM `{project_id}.{dataset}.{table}`
+            WHERE DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
+            GROUP BY referrer_domain
+        )
+        SELECT 
+            referrer_domain,
+            count
+        FROM referrer_stats
+        WHERE referrer_domain IS NOT NULL AND referrer_domain != ''
+        ORDER BY count DESC
+        LIMIT 10
+        """
+        
+        df = load_bigquery_data(base_query)
+        
+        if df is not None and not df.empty:
+            # 채널 분류 추가
+            df['channel'] = df['referrer_domain'].apply(classify_referrer)
             
-            print("\n3. 주요 유입 채널:")
-            print(analysis_results['channel_stats'])
+            # 채널 필터링
+            if channel != 'all':
+                df = df[df['channel'] == channel]
             
-            print("\n4. 주요 유입 URL:")
-            print(analysis_results['url_stats']) 
+            return {
+                'domains': df['referrer_domain'].tolist(),
+                'counts': df['count'].tolist(),
+                'channels': df['channel'].tolist()
+            }
+        return None
+    except Exception as e:
+        return None
 
+@callback(
+    Output('top-referrers-graph', 'figure'),
+    [Input('date-range', 'start_date'),
+     Input('date-range', 'end_date'),
+     Input('channel-filter', 'value')]
+)
+def update_top_referrers_graph(start_date, end_date, channel):
+    """TOP 유입 경로 그래프를 업데이트합니다."""
+    if not start_date or not end_date:
+        return go.Figure()
+    
+    stats = load_top_referrers(start_date, end_date, channel)
+    
+    if stats is None:
+        return go.Figure()
+    
+    fig = go.Figure()
+    
+    # 각 채널별로 데이터를 그룹화하여 표시
+    for domain, count, domain_channel in zip(stats['domains'], stats['counts'], stats['channels']):
+        fig.add_trace(go.Bar(
+            y=[domain],  # y축에 도메인을 표시
+            x=[count],   # x축에 카운트를 표시
+            name=domain,
+            marker_color=COLOR_SCHEME[domain_channel],
+            showlegend=False,
+            orientation='h'  # 가로 방향으로 설정
+        ))
+    
+    fig.update_layout(
+        title='TOP 10 유입 경로',
+        yaxis_title='유입 경로',
+        xaxis_title='유입 수',
+        plot_bgcolor=COLOR_SCHEME['background'],
+        paper_bgcolor=COLOR_SCHEME['background'],
+        font=dict(color=COLOR_SCHEME['text']),
+        margin=dict(l=50, r=50, t=50, b=50),
+        hovermode='y unified',
+        xaxis=dict(
+            type='log',
+            title='유입 수 (로그 스케일)',
+            showgrid=True,
+            gridcolor='rgba(0,0,0,0.1)'
+        ),
+        yaxis=dict(
+            autorange='reversed'  # y축을 역순으로 정렬하여 가장 큰 값이 위에 오도록 함
+        )
+    )
+    
+    return fig
 
+def load_channel_distribution(start_date, end_date):
+    """선택된 기간의 채널별 유입 분포를 계산합니다."""
+    try:
+        # 기본 쿼리
+        base_query = f"""
+        WITH channel_stats AS (
+            SELECT 
+                CASE 
+                    WHEN referrer_domain IS NULL OR referrer_domain = '' THEN '직접 접속'
+                    WHEN referrer_domain LIKE '%facebook.com%' OR referrer_domain LIKE '%instagram.com%' OR referrer_domain LIKE '%twitter.com%' OR referrer_domain LIKE '%linkedin.com%' THEN '소셜 미디어'
+                    WHEN referrer_domain LIKE '%google.com%' OR referrer_domain LIKE '%naver.com%' OR referrer_domain LIKE '%daum.net%' OR referrer_domain LIKE '%bing.com%' THEN '검색 엔진'
+                    ELSE '기타'
+                END as channel,
+                COUNT(*) as count
+            FROM `{project_id}.{dataset}.{table}`
+            WHERE DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
+            GROUP BY channel
+        )
+        SELECT 
+            channel,
+            count
+        FROM channel_stats
+        ORDER BY count DESC
+        """
+        
+        df = load_bigquery_data(base_query)
+        
+        if df is not None and not df.empty:
+            return {
+                'channels': df['channel'].tolist(),
+                'counts': df['count'].tolist()
+            }
+        return None
+    except Exception as e:
+        return None
 
+@callback(
+    Output('channel-distribution', 'figure'),
+    [Input('date-range', 'start_date'),
+     Input('date-range', 'end_date')]
+)
+def update_channel_distribution(start_date, end_date):
+    """채널 분포 파이 차트를 업데이트합니다."""
+    if not start_date or not end_date:
+        return go.Figure()
+    
+    stats = load_channel_distribution(start_date, end_date)
+    
+    if stats is None:
+        return go.Figure()
+    
+    # 실제 비율 계산
+    total = sum(stats['counts'])
+    percentages = [count / total * 100 for count in stats['counts']]
+    
+    fig = go.Figure()
+    
+    # 파이 차트 생성
+    fig.add_trace(go.Pie(
+        labels=stats['channels'],
+        values=stats['counts'],  # 실제 값 사용
+        marker=dict(colors=[COLOR_SCHEME[channel] for channel in stats['channels']]),
+        textinfo='label+percent',
+        insidetextorientation='radial',
+        hole=0.3,
+        hovertemplate="<b>%{label}</b><br>" +
+                     "유입 수: %{value:,}<br>" +
+                     "비율: %{percent:.1%}<extra></extra>"
+    ))
+    
+    fig.update_layout(
+        title='유입 채널 분포',
+        plot_bgcolor=COLOR_SCHEME['background'],
+        paper_bgcolor=COLOR_SCHEME['background'],
+        font=dict(color=COLOR_SCHEME['text']),
+        margin=dict(l=50, r=50, t=50, b=50),
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+    
+    return fig
 
-#페이지 
-COLOR_SCHEME = {
-    'total': '#6c757d',      # 전체 - 회색
-    'direct': '#ff7f0e',     # 직접 접속 - 주황색
-    'social': '#1f77b4',     # 소셜 미디어 - 파란색
-    'search': '#2ca02c',     # 검색 엔진 - 초록색
-    'others': '#d62728',     # 기타 - 빨간색
-    '직접 접속': '#ff7f0e',  # 직접 접속 - 주황색
-    '소셜 미디어': '#1f77b4', # 소셜 미디어 - 파란색
-    '검색 엔진': '#2ca02c',   # 검색 엔진 - 초록색
-    '기타': '#d62728',       # 기타 - 빨간색
-    'background': '#f8f9fa',  # 배경색
-    'text': '#2c3e50'        # 텍스트 색상
-}
+def load_url_distribution(start_date, end_date, channel='all'):
+    """선택된 기간의 TOP 유입 페이지를 계산합니다."""
+    try:
+        # 기본 쿼리
+        base_query = f"""
+        WITH page_stats AS (
+            SELECT 
+                url_path,
+                COUNT(*) as count
+            FROM `{project_id}.{dataset}.{table}`
+            WHERE DATE(timestamp_utc) BETWEEN '{start_date}' AND '{end_date}'
+            AND url_path IS NOT NULL 
+            AND url_path != ''
+            AND url_path != '/'
+            GROUP BY url_path
+        )
+        SELECT 
+            url_path,
+            count
+        FROM page_stats
+        ORDER BY count DESC
+        LIMIT 10
+        """
+        
+        df = load_bigquery_data(base_query)
+        
+        if df is not None and not df.empty:
+            return {
+                'pages': df['url_path'].tolist(),
+                'counts': df['count'].tolist()
+            }
+        return None
+    except Exception as e:
+        return None
+
+@callback(
+    Output('url-distribution', 'figure'),
+    [Input('date-range', 'start_date'),
+     Input('date-range', 'end_date'),
+     Input('channel-filter', 'value')]
+)
+def update_url_distribution(start_date, end_date, channel):
+    """유입 페이지 분포 그래프를 업데이트합니다."""
+    if not start_date or not end_date:
+        return go.Figure()
+    
+    stats = load_url_distribution(start_date, end_date, channel)
+    
+    if stats is None:
+        return go.Figure()
+    
+    fig = go.Figure()
+    
+    # 파이 차트 생성
+    fig.add_trace(go.Pie(
+        labels=stats['pages'],
+        values=stats['counts'],
+        textinfo='percent',  # 퍼센트만 표시
+        textposition='auto',  # 자동 위치 조정
+        hole=0.3,
+        showlegend=True,  # 범례 표시
+        hovertemplate="<b>%{label}</b><br>" +
+                     "유입 수: %{value:,}<br>" +
+                     "비율: %{percent:.1%}<extra></extra>"
+    ))
+    
+    # 색상 팔레트 생성 (10개의 구분되는 색상)
+    colors = [
+        '#636EFA',  # 파란색
+        '#EF553B',  # 빨간색
+        '#00CC96',  # 초록색
+        '#AB63FA',  # 보라색
+        '#FFA15A',  # 주황색
+        '#19D3F3',  # 하늘색
+        '#FF6692',  # 분홍색
+        '#B6E880',  # 연두색
+        '#FF97FF',  # 자주색
+        '#FECB52'   # 노란색
+    ]
+    
+    fig.update_traces(marker=dict(colors=colors))
+    
+    fig.update_layout(
+        title='유입 URL 분포',
+        plot_bgcolor=COLOR_SCHEME['background'],
+        paper_bgcolor=COLOR_SCHEME['background'],
+        font=dict(color=COLOR_SCHEME['text']),
+        margin=dict(l=20, r=300, t=50, b=20),  # 오른쪽 여백을 더 크게
+        showlegend=True,
+        legend=dict(
+            orientation="v",
+            yanchor="middle",
+            y=0.5,
+            xanchor="left",
+            x=1.1,
+            bgcolor=COLOR_SCHEME['background'],
+            bordercolor=COLOR_SCHEME['text'],
+            borderwidth=1
+        ),
+        width=1200,  # 전체 차트 너비
+        height=300   # 차트 높이를 300px로 감소
+    )
+    
+    return fig
+
+# 페이지 레이아웃 정의
+layout = create_referrer_layout()
 
 # 데이터 로드
 df = load_referrer_data()
@@ -227,323 +826,6 @@ else:
     analysis_results = None
     min_date = None
     max_date = None
-
-# 로딩 컴포넌트
-loading_component = dbc.Spinner(
-    html.Div(id="loading-output"),
-    color="primary",
-    type="grow",
-    fullscreen=True
-)
-
-# 에러 메시지 컴포넌트
-error_alert = dbc.Alert(
-    "데이터를 불러오는 중 오류가 발생했습니다. 다시 시도해주세요.",
-    id="error-message",
-    color="danger",
-    dismissable=True,
-    is_open=False
-)
-
-# 필터 컴포넌트
-filters = dbc.Card(
-    dbc.CardBody([
-        html.H4("필터", className="card-title"),
-        dbc.Row([
-            dbc.Col([
-                html.Label("기간 선택"),
-                dcc.DatePickerRange(
-                    id='date-range',
-                    start_date=min_date,
-                    end_date=max_date,
-                    min_date_allowed=min_date,
-                    max_date_allowed=max_date,
-                    display_format='YYYY-MM-DD'
-                )
-            ], width=6),
-            dbc.Col([
-                html.Label("유입 채널"),
-                dcc.Dropdown(
-                    id='channel-filter',
-                    options=[
-                        {'label': '전체', 'value': 'all'},
-                        {'label': '직접 접속', 'value': '직접 접속'},
-                        {'label': '소셜 미디어', 'value': '소셜 미디어'},
-                        {'label': '검색 엔진', 'value': '검색 엔진'},
-                        {'label': '기타', 'value': '기타'}
-                    ],
-                    value='all',
-                    clearable=False
-                )
-            ], width=6),
-        ])
-    ]), 
-    className="mb-3"
-)
-
-# 주요 지표 카드
-metrics_cards = dbc.Row([
-    dbc.Col([
-        dbc.Card([
-            dbc.CardBody([
-                html.H4("전체 유입 수", className="text-center mb-0", style={"color": "#666"}),
-                html.H2(
-                    id='total-referrers-metric',
-                    className="text-center display-4 font-weight-bold mb-0",
-                    style={"color": COLOR_SCHEME['total']}
-                ),
-            ])
-        ], className="mb-3")
-    ], width=12),
-])
-
-# 전체 레이아웃
-layout = dbc.Container([
-    html.H1("유입 경로 분석 대시보드", className="my-4"),
-    error_alert,
-    loading_component,
-    filters,
-    metrics_cards,
-    
-    # 상단 섹션: 일별 유입 수 그래프
-    dbc.Card(
-        dbc.CardBody([
-            html.H4("일별 유입 수", className="card-title"),
-            dcc.Graph(id='daily-referrers-graph')
-        ]),
-        className="mb-3"
-    ),
-    
-    # 중간 섹션: TOP 10 유입 경로와 채널별 비율
-    dbc.Row([
-        # 좌측: TOP 10 유입 경로 (막대그래프)
-        dbc.Col([
-            dbc.Card(
-                dbc.CardBody([
-                    html.H4("TOP 10 유입 경로", className="card-title"),
-                    dcc.Graph(id='top-referrers-graph')
-                ])
-            )
-        ], width=8),
-        
-        # 우측: 채널별 비율 (파이차트)
-        dbc.Col([
-            dbc.Card(
-                dbc.CardBody([
-                    html.H4("유입 채널 분포", className="card-title"),
-                    dcc.Graph(id='channel-distribution')
-                ])
-            )
-        ], width=4),
-    ], className="mb-3"),
-    
-    # 하단 섹션: 유입 URL 분포
-    dbc.Card(
-        dbc.CardBody([
-            html.H4("유입 URL 분포", className="card-title"),
-            dcc.Graph(id='url-distribution')
-        ]),
-        className="mb-3"
-    ),
-], fluid=True)
-
-# 콜백 함수들
-@callback(
-    [Output('daily-referrers-graph', 'figure'),
-     Output('top-referrers-graph', 'figure'),
-     Output('channel-distribution', 'figure'),
-     Output('url-distribution', 'figure'),
-     Output('total-referrers-metric', 'children'),
-     Output('error-message', 'is_open')],
-    [Input('date-range', 'start_date'),
-     Input('date-range', 'end_date'),
-     Input('channel-filter', 'value')]
-)
-def update_graphs(start_date, end_date, channel):
-    print("\n=== update_graphs 콜백 실행 ===")
-    print(f"시작 날짜: {start_date}")
-    print(f"종료 날짜: {end_date}")
-    print(f"선택된 채널: {channel}")
-    
-    try:
-        if df is None or analysis_results is None:
-            print("데이터가 없습니다")
-            empty_fig = go.Figure()
-            empty_fig.update_layout(
-                title_text="데이터가 없습니다",
-                showlegend=False,
-                height=300,
-                margin=dict(l=20, r=20, t=40, b=20)
-            )
-            return empty_fig, empty_fig, empty_fig, empty_fig, "0", False
-
-        # 전체 유입 수는 필터링 없이 계산
-        total_referrers = len(df)
-        print(f"전체 유입 수: {total_referrers}")
-        
-        # 채널 필터링된 데이터로 다른 그래프 생성
-        filtered_df = filter_data(df, start_date, end_date, channel)
-        print(f"필터링 후 데이터: {len(filtered_df) if filtered_df is not None else 0}행")
-        
-        if filtered_df.empty:
-            print("필터링된 데이터가 없습니다")
-            empty_fig = go.Figure()
-            empty_fig.update_layout(
-                title_text="선택한 기간에 데이터가 없습니다",
-                showlegend=False,
-                height=300,
-                margin=dict(l=20, r=20, t=40, b=20)
-            )
-            return empty_fig, empty_fig, empty_fig, empty_fig, f"{total_referrers:,}", False
-
-        analysis = analyze_referrer_data(filtered_df)
-        print("분석 결과 생성 완료")
-        
-        # 디버깅 정보 출력
-        print("\n=== 디버깅 정보 ===")
-        print(f"선택된 채널: {channel}")
-        print(f"필터링된 데이터 수: {len(filtered_df)}")
-        print("\n일별 통계:")
-        print(analysis['daily_stats'])
-        print("\n채널별 통계:")
-        print(analysis['channel_stats'])
-        print("\n도메인별 통계:")
-        print(analysis['domain_stats'])
-        print("==================\n")
-        
-        # 1. 일별 유입 수 그래프 (채널별 라인 그래프)
-        daily_fig = go.Figure()
-        
-        # 직접 접속을 제외한 채널들 먼저 표시
-        non_direct_channels = [col for col in analysis['daily_stats'].columns if col != '직접 접속']
-        for channel in non_direct_channels:
-            daily_fig.add_trace(
-                go.Scatter(
-                    name=channel,
-                    x=analysis['daily_stats'].index,
-                    y=analysis['daily_stats'][channel],
-                    mode='lines+markers',
-                    line=dict(color=COLOR_SCHEME[channel], width=2),
-                    marker=dict(size=8)
-                )
-            )
-        
-        # 직접 접속은 점선으로 표시
-        if '직접 접속' in analysis['daily_stats'].columns:
-            daily_fig.add_trace(
-                go.Scatter(
-                    name='직접 접속',
-                    x=analysis['daily_stats'].index,
-                    y=analysis['daily_stats']['직접 접속'],
-                    mode='lines+markers',
-                    line=dict(color=COLOR_SCHEME['직접 접속'], width=2, dash='dot'),
-                    marker=dict(size=8)
-                )
-            )
-        
-        daily_fig.update_layout(
-            title="일별 유입 수 (채널별)",
-            height=400,
-            plot_bgcolor=COLOR_SCHEME['background'],
-            paper_bgcolor=COLOR_SCHEME['background'],
-            font=dict(color=COLOR_SCHEME['text']),
-            margin=dict(l=50, r=50, t=50, b=50),
-            hovermode='x unified',
-            yaxis=dict(
-                type='log',
-                title='유입 수 (로그 스케일)',
-                showgrid=True,
-                gridcolor='rgba(0,0,0,0.1)'
-            )
-        )
-        print("일별 유입 수 그래프 생성 완료")
-        
-        # 2. TOP 10 유입 경로 막대그래프
-        top_referrers = analysis['domain_stats']
-        top_fig = go.Figure(
-            data=[
-                go.Bar(
-                    x=top_referrers['count'],
-                    y=top_referrers['referrer_domain'],
-                    orientation='h',
-                    marker_color=[COLOR_SCHEME[channel] for channel in top_referrers['channel']]
-                )
-            ]
-        )
-        top_fig.update_layout(
-            title="TOP 10 유입 경로",
-            height=400,
-            yaxis={'categoryorder': 'total ascending'},
-            plot_bgcolor=COLOR_SCHEME['background'],
-            paper_bgcolor=COLOR_SCHEME['background'],
-            font=dict(color=COLOR_SCHEME['text']),
-            margin=dict(l=50, r=50, t=50, b=50),
-            xaxis=dict(
-                type='log',
-                title='유입 수 (로그 스케일)',
-                showgrid=True,
-                gridcolor='rgba(0,0,0,0.1)'
-            )
-        )
-        print("TOP 10 유입 경로 그래프 생성 완료")
-        
-        # 3. 채널별 비율 파이차트 (로그 스케일 적용)
-        channel_stats = analysis['channel_stats']
-        
-        # 로그 스케일 적용을 위해 값 변환
-        log_values = np.log1p(channel_stats.values)
-        log_values = log_values / log_values.sum()  # 정규화
-        
-        channel_fig = px.pie(
-            values=log_values,
-            names=channel_stats.index,
-            title="유입 채널 분포 (로그 스케일)",
-            hole=0.3,
-            color=channel_stats.index,
-            color_discrete_map=COLOR_SCHEME
-        )
-        channel_fig.update_layout(
-            height=400,
-            margin=dict(l=20, r=20, t=40, b=20)
-        )
-        print("채널별 비율 그래프 생성 완료")
-        
-        # 4. URL 분포 파이차트
-        url_stats = analysis['url_stats']
-        log_url_values = np.log1p(url_stats.values)
-        log_url_values = log_url_values / log_url_values.sum()  # 정규화
-        
-        url_fig = px.pie(
-            values=log_url_values,
-            names=url_stats.index,
-            title="유입 URL 분포 (로그 스케일)",
-            hole=0.3
-        )
-        url_fig.update_layout(
-            height=300,
-            margin=dict(l=20, r=20, t=40, b=20)
-        )
-        print("URL 분포 그래프 생성 완료")
-        
-        return [
-            daily_fig,
-            top_fig,
-            channel_fig,
-            url_fig,
-            f"{total_referrers:,}",
-            False  # 에러 메시지 숨김
-        ]
-        
-    except Exception as e:
-        print(f"Error in update_graphs: {str(e)}")
-        empty_fig = go.Figure()
-        empty_fig.update_layout(
-            title_text="오류가 발생했습니다",
-            showlegend=False,
-            height=300,
-            margin=dict(l=20, r=20, t=40, b=20)
-        )
-        return empty_fig, empty_fig, empty_fig, empty_fig, "0", True  # 에러 메시지 표시
 
 
 
