@@ -2,7 +2,7 @@
 NAV_LINKS = [
     {"icon": "🏠", "label": "홈", "href": "/"},
     {"icon": "📊", "label": "트래픽", "href": "/traffic"},
-    {"icon": "👥", "label": "사용자 분석", "href": "/user-analysis"},
+    {"icon": "👥", "label": "방문자 분석", "href": "/visitor-analysis"},
     {"icon": "🔍", "label": "인기 키워드", "href": "/popular-keywords"},
     {"icon": "🛣️", "label": "유입 출처", "href": "/referrer"},
     {"icon": "🌍", "label": "지역", "href": "/region"},
@@ -14,7 +14,7 @@ NAV_LINKS = [
 PAGE_MODULES = {
     "/": "home",
     "/traffic": "traffic",
-    "/user-analysis": "user_analysis",
+    "/visitor-analysis": "visitor_analysis",
     "/popular-keywords": "popular_keywords",
     "/referrer": "referrer",
     "/region": "region",
