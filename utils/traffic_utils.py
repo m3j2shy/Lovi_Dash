@@ -189,7 +189,8 @@ def fig_traffic_predict(min_date_str, max_date_str, predict_date=PREDICT_DATE):
     model = Prophet(
         daily_seasonality=True,
         weekly_seasonality=False,  # 5일 데이터로 주간 패턴 학습 불가
-        changepoint_prior_scale=0.05  # 급격한 변화 민감도 조절[1][8]
+        changepoint_prior_scale=0.05,  # 급격한 변화 민감도 조절[1][8]
+        stan_backend= None
     )
     model.fit(df_prophet)
     future = model.make_future_dataframe(periods=predict_date, freq='h')
