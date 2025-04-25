@@ -7,6 +7,10 @@ import datetime
 import pandas as pd
 import plotly.express as px
 import math
+from dash import html
+from dash.dependencies import Input, Output
+from dash import dcc, html
+from dash.html import Div
 
 # 공통 상수 정의
 COLOR_MAP = {
@@ -39,59 +43,134 @@ if not query_result.empty:
     max_date_str = max_date.strftime('%Y-%m-%d')
 
 def create_home_layout():
+    # 공통 카드 스타일 정의
+    card_style = {
+        "backgroundColor": "white",
+        "borderRadius": "10px",
+        "padding": "20px",
+        "height": "100%",
+        "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.1)"
+    }
+
     return html.Div([
         html.H2("대시보드"),
         html.Div([
-            html.Div([
-                html.H4("최근 24시간 트래픽 추이"),
-                dcc.Loading(
-                    id="loading-traffic-chart",
-                    type="circle",
-                    children=dcc.Graph(id='traffic-chart')
-                )
-            ], className="chart-container"),
+            # 첫 번째 row - 3:9 비율 (유입 수와 지도)
             dbc.Row([
+                # 왼쪽 3 - 최근 24시간 방문자 수
                 dbc.Col([
-                    html.Div([
-                        html.H4("지역별 접속 현황"),
-                        dcc.Loading(
-                            id="loading-region-map-home",
-                            type="circle",
-                            children=dcc.Graph(id='region-map-home')
-                        )
-                    ], className="chart-container")
-                ], width=6),
+                    dcc.Link(
+                        html.Div([
+                            html.H4("최근 24시간 방문자", className="text-center mb-4", style={"color": "#2c3e50"}),
+                            html.Div([
+                                html.H5("전체 방문자", className="text-center mb-1", style={"color": "#2c3e50"}),
+                                html.H2(
+                                    id='total-visitors-24h',
+                                    className="text-center font-weight-bold mb-3",
+                                    style={"color": "#6c757d", "fontSize": "2.5rem"}
+                                ),
+                                html.H5("신규 방문자", className="text-center mb-1", style={"color": "#2c3e50"}),
+                                html.H2(
+                                    id='new-visitors-24h',
+                                    className="text-center font-weight-bold mb-3",
+                                    style={"color": "#ff7f0e", "fontSize": "2.5rem"}
+                                ),
+                                html.H5("재방문자", className="text-center mb-1", style={"color": "#2c3e50"}),
+                                html.H2(
+                                    id='returning-visitors-24h',
+                                    className="text-center font-weight-bold",
+                                    style={"color": "#1f77b4", "fontSize": "2.5rem"}
+                                )
+                            ], style={
+                                "height": "300px",
+                                "display": "flex",
+                                "flexDirection": "column",
+                                "justifyContent": "center",
+                                "gap": "0.5rem"
+                            })
+                        ], className="chart-container h-100 hover-effect", style=card_style),
+                        href="/visitor-analysis",
+                        style={"textDecoration": "none"}
+                    )
+                ], width=3),
+                # 오른쪽 9 - 지도
                 dbc.Col([
-                    html.Div([
-                        html.H4("상태 코드 분포"),
-                        dcc.Loading(
-                            id="loading-status-distribution-home",
-                            type="circle",
-                            children=dcc.Graph(id='status-distribution-home')
-                        )
-                    ], className="chart-container")
-                ], width=6)
+                    dcc.Link(
+                        html.Div([
+                            html.H4("지역별 접속 현황", style={"color": "#2c3e50"}),
+                            dcc.Loading(
+                                id="loading-region-map-home",
+                                type="circle",
+                                children=dcc.Graph(
+                                    id='region-map-home',
+                                    style={"height": "300px"}
+                                )
+                            )
+                        ], className="chart-container h-100 hover-effect", style=card_style),
+                        href="/region",
+                        style={"textDecoration": "none"}
+                    )
+                ], width=9)
             ], className="mb-4"),
+
+            # 두 번째 row - 트래픽 추이 (전체 너비)
             dbc.Row([
                 dbc.Col([
-                    html.Div([
-                        html.H4("인기 키워드"),
-                        dcc.Loading(
-                            id="loading-popular-keywords",
-                            type="circle",
-                            children=dcc.Graph(id='popular-keywords-chart')
-                        )
-                    ], className="chart-container")
-                ], width=6),
+                    dcc.Link(
+                        html.Div([
+                            html.H4("최근 24시간 트래픽 추이", style={"color": "#2c3e50"}),
+                            dcc.Loading(
+                                id="loading-traffic-chart",
+                                type="circle",
+                                children=dcc.Graph(
+                                    id='traffic-chart',
+                                    style={"height": "300px"}
+                                )
+                            )
+                        ], className="chart-container h-100 hover-effect", style=card_style),
+                        href="/management",
+                        style={"textDecoration": "none"}
+                    )
+                ], width=12)
+            ], className="mb-4"),
+
+            # 세 번째 row - 6:6 비율
+            dbc.Row([
+                # 왼쪽 6 - 상태 코드 분포
                 dbc.Col([
-                    html.Div([
-                        html.H4("지역 분포"),
-                        dcc.Loading(
-                            id="loading-region-distribution",
-                            type="circle",
-                            children=dcc.Graph(id='region-distribution-chart')
-                        )
-                    ], className="chart-container")
+                    dcc.Link(
+                        html.Div([
+                            html.H4("상태 코드 분포", style={"color": "#2c3e50"}),
+                            dcc.Loading(
+                                id="loading-status-distribution-home",
+                                type="circle",
+                                children=dcc.Graph(
+                                    id='status-distribution-home',
+                                    style={"height": "300px"}
+                                )
+                            )
+                        ], className="chart-container h-100 hover-effect", style=card_style),
+                        href="/management",
+                        style={"textDecoration": "none"}
+                    )
+                ], width=6),
+                # 오른쪽 6 - 유입 URL 분포
+                dbc.Col([
+                    dcc.Link(
+                        html.Div([
+                            html.H4("유입 URL 분포", style={"color": "#2c3e50"}),
+                            dcc.Loading(
+                                id="loading-url-distribution-home",
+                                type="circle",
+                                children=dcc.Graph(
+                                    id='url-distribution-home',
+                                    style={"height": "300px"}
+                                )
+                            )
+                        ], className="chart-container h-100 hover-effect", style=card_style),
+                        href="/referrer",
+                        style={"textDecoration": "none"}
+                    )
                 ], width=6)
             ])
         ], className="page-container")
@@ -102,11 +181,17 @@ def create_home_layout():
     Input('region-map-home', 'id')
 )
 def update_region_map_home(_):
-    # 가장 최근 날짜의 지도 데이터 쿼리
+    # 최근 24시간의 지도 데이터 쿼리
     query = """
-    WITH latest_date AS (
-        SELECT DATE(MAX(timestamp_utc)) as max_date
+    WITH latest_time AS (
+        SELECT TIMESTAMP(MAX(timestamp_utc)) as max_timestamp
         FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+    ),
+    time_range AS (
+        SELECT 
+            max_timestamp,
+            TIMESTAMP_SUB(max_timestamp, INTERVAL 24 HOUR) as start_timestamp
+        FROM latest_time
     ),
     base_data AS (
         SELECT 
@@ -117,7 +202,12 @@ def update_region_map_home(_):
             geo IS NOT NULL 
             AND geo != '-' 
             AND geo != ''
-            AND DATE(timestamp_utc) = (SELECT max_date FROM latest_date)
+            AND TIMESTAMP(timestamp_utc) >= (
+                SELECT start_timestamp FROM time_range
+            )
+            AND TIMESTAMP(timestamp_utc) <= (
+                SELECT max_timestamp FROM time_range
+            )
         GROUP BY country
     )
     SELECT * FROM base_data
@@ -145,7 +235,7 @@ def update_region_map_home(_):
 
     fig.update_layout(
         autosize=True,
-        height=400,
+        height=300,
         margin=dict(l=0, r=0, t=40, b=0)
     )
 
@@ -156,11 +246,17 @@ def update_region_map_home(_):
     Input('status-distribution-home', 'id')
 )
 def update_status_distribution_home(_):
-    # 가장 최근 날짜의 상태 코드 분포 데이터 쿼리
+    # 최근 24시간의 상태 코드 분포 데이터 쿼리
     query = """
-    WITH latest_date AS (
-        SELECT DATE(MAX(timestamp_utc)) as max_date
+    WITH latest_time AS (
+        SELECT TIMESTAMP(MAX(timestamp_utc)) as max_timestamp
         FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+    ),
+    time_range AS (
+        SELECT 
+            max_timestamp,
+            TIMESTAMP_SUB(max_timestamp, INTERVAL 24 HOUR) as start_timestamp
+        FROM latest_time
     )
     SELECT
         status_code,
@@ -169,7 +265,12 @@ def update_status_distribution_home(_):
     FROM
         `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
     WHERE
-        DATE(timestamp_utc) = (SELECT max_date FROM latest_date)
+        TIMESTAMP(timestamp_utc) >= (
+            SELECT start_timestamp FROM time_range
+        )
+        AND TIMESTAMP(timestamp_utc) <= (
+            SELECT max_timestamp FROM time_range
+        )
     GROUP BY
         status_code, status_group
     """
@@ -251,7 +352,7 @@ def update_status_distribution_home(_):
                 xanchor="right",
                 x=1
             ),
-            height=400,
+            height=300,
             margin=dict(t=80, b=30, l=20, r=20),
             hoverlabel=dict(
                 bgcolor="white",
@@ -271,21 +372,35 @@ def update_status_distribution_home(_):
 )
 def update_traffic_chart(_):
     query = """
-    WITH latest_date AS (
-        SELECT DATE(MAX(timestamp_utc)) as max_date
+    WITH latest_time AS (
+        SELECT 
+            TIMESTAMP_TRUNC(TIMESTAMP(MAX(timestamp_utc)), HOUR) as max_hour_timestamp
         FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+    ),
+    time_range AS (
+        SELECT 
+            max_hour_timestamp,
+            TIMESTAMP_SUB(max_hour_timestamp, INTERVAL 23 HOUR) as start_timestamp
+        FROM latest_time
+    ),
+    hourly_stats AS (
+        SELECT
+            TIMESTAMP_TRUNC(timestamp_utc, HOUR) as hour_timestamp,
+            COUNT(*) as count
+        FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+        WHERE TIMESTAMP(timestamp_utc) >= (
+            SELECT start_timestamp FROM time_range
+        )
+        AND TIMESTAMP(timestamp_utc) < (
+            SELECT max_hour_timestamp FROM time_range
+        )
+        GROUP BY hour_timestamp
+        ORDER BY hour_timestamp
     )
-    SELECT
-        EXTRACT(HOUR FROM timestamp_utc) as hour_to_24,
-        COUNT(*) as count
-    FROM
-        `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
-    WHERE
-        DATE(timestamp_utc) = (SELECT max_date FROM latest_date)
-    GROUP BY
-        hour_to_24
-    ORDER BY
-        hour_to_24
+    SELECT 
+        FORMAT_TIMESTAMP('%Y-%m-%d %H:00', hour_timestamp) as hour_label,
+        count
+    FROM hourly_stats
     """
     df = load_bigquery_data(query)
     if df.empty:
@@ -294,10 +409,9 @@ def update_traffic_chart(_):
     # 트래픽 바 차트 생성
     fig = px.bar(
         df,
-        x='hour_to_24',
+        x='hour_label',
         y='count',
-        title='최근 24시간 트래픽 추이',
-        labels={'hour_to_24': '시간', 'count': '트래픽 수'},
+        labels={'hour_label': '시간', 'count': '트래픽 수'},
         color='count',  # 트래픽 수에 따른 색상 그라데이션
         color_continuous_scale='Viridis',  # 색상 스케일
         text='count'  # 바 위에 값 표시
@@ -306,7 +420,7 @@ def update_traffic_chart(_):
     # 레이아웃 업데이트
     fig.update_layout(
         autosize=True,
-        height=400,
+        height=300,
         margin=dict(l=0, r=0, t=40, b=0),
         plot_bgcolor='rgba(0,0,0,0)',  # 배경 투명
         paper_bgcolor='rgba(0,0,0,0)',  # 배경 투명
@@ -319,11 +433,12 @@ def update_traffic_chart(_):
             'font': dict(size=20, color='#2c3e50')
         },
         xaxis=dict(
-            title='시간(24H)',
+            title='시간',
             showgrid=True,
             gridcolor='rgba(128, 128, 128, 0.2)',
             zerolinecolor='rgba(128, 128, 128, 0.2)',
-            tickfont=dict(size=12, color='#2c3e50')
+            tickfont=dict(size=12, color='#2c3e50'),
+            tickangle=45  # x축 레이블 45도 회전
         ),
         yaxis=dict(
             title='트래픽 수',
@@ -353,6 +468,182 @@ def update_traffic_chart(_):
         )
     )
 
+    return fig
+
+@callback(
+    [Output('total-visitors-24h', 'children'),
+     Output('new-visitors-24h', 'children'),
+     Output('returning-visitors-24h', 'children')],
+    Input('total-visitors-24h', 'id')
+)
+def update_visitor_metrics_24h(_):
+    """최근 24시간 방문자 수 메트릭을 업데이트합니다."""
+    counts = load_visitor_counts_24h()
+    
+    if counts is None:
+        return "0", "0", "0"
+    
+    return (
+        f"{counts['total']:,}",
+        f"{counts['new']:,}",
+        f"{counts['returning']:,}"
+    )
+
+def load_visitor_counts_24h():
+    """최근 24시간 내의 방문자 수를 계산합니다."""
+    try:
+        query = """
+        WITH latest_time AS (
+            SELECT TIMESTAMP(MAX(timestamp_utc)) as max_timestamp
+            FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+        ),
+        first_visits AS (
+            -- 전체 기간에서 각 IP와 User-agent의 첫 방문 시간
+            SELECT 
+                ip,
+                user_agent,
+                MIN(TIMESTAMP(timestamp_utc)) as first_visit_time
+            FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+            GROUP BY ip, user_agent
+        ),
+        period_visits AS (
+            -- 최근 24시간 내의 각 IP와 User-agent의 마지막 방문 시간
+            SELECT 
+                ip,
+                user_agent,
+                MAX(TIMESTAMP(timestamp_utc)) as last_visit_time
+            FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+            WHERE TIMESTAMP(timestamp_utc) >= (
+                SELECT TIMESTAMP_SUB(max_timestamp, INTERVAL 24 HOUR)
+                FROM latest_time
+            )
+            GROUP BY ip, user_agent
+        )
+        SELECT 
+            COUNT(*) as total_visitors,
+            COUNTIF(p.last_visit_time = f.first_visit_time) as new_visitors,
+            COUNTIF(p.last_visit_time != f.first_visit_time) as returning_visitors
+        FROM period_visits p
+        JOIN first_visits f ON p.ip = f.ip AND p.user_agent = f.user_agent
+        """
+        
+        df = load_bigquery_data(query)
+        
+        if df is not None and not df.empty:
+            return {
+                'total': df['total_visitors'].iloc[0],
+                'new': df['new_visitors'].iloc[0],
+                'returning': df['returning_visitors'].iloc[0]
+            }
+        return None
+    except Exception as e:
+        print(f"Error in load_visitor_counts_24h: {str(e)}")
+        return None
+
+def load_url_distribution_home():
+    """최근 24시간 내 TOP 유입 페이지를 계산합니다."""
+    try:
+        query = """
+        WITH latest_date AS (
+            SELECT TIMESTAMP(MAX(timestamp_utc)) as max_timestamp
+            FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+        ),
+        page_stats AS (
+            SELECT 
+                url_path,
+                COUNT(*) as count
+            FROM `dev-voice-457205-p8.lovi_dataset.lovi_datatable`
+            WHERE TIMESTAMP(timestamp_utc) >= (
+                SELECT TIMESTAMP_SUB(max_timestamp, INTERVAL 24 HOUR)
+                FROM latest_date
+            )
+            AND url_path IS NOT NULL 
+            AND url_path != ''
+            AND url_path != '/'
+            GROUP BY url_path
+        )
+        SELECT 
+            url_path,
+            count
+        FROM page_stats
+        ORDER BY count DESC
+        LIMIT 10
+        """
+        
+        df = load_bigquery_data(query)
+        
+        if df is not None and not df.empty:
+            return {
+                'pages': df['url_path'].tolist(),
+                'counts': df['count'].tolist()
+            }
+        return None
+    except Exception as e:
+        print(f"Error in load_url_distribution_home: {str(e)}")
+        return None
+
+@callback(
+    Output('url-distribution-home', 'figure'),
+    Input('url-distribution-home', 'id')
+)
+def update_url_distribution_home(_):
+    """유입 페이지 분포 그래프를 업데이트합니다."""
+    stats = load_url_distribution_home()
+    
+    if stats is None:
+        return go.Figure()
+    
+    fig = go.Figure()
+    
+    # 파이 차트 생성
+    fig.add_trace(go.Pie(
+        labels=stats['pages'],
+        values=stats['counts'],
+        textinfo='percent',  # 퍼센트만 표시
+        textposition='auto',  # 자동 위치 조정
+        hole=0.3,
+        showlegend=True,  # 범례 표시
+        hovertemplate="<b>%{label}</b><br>" +
+                     "유입 수: %{value:,}<br>" +
+                     "비율: %{percent:.1%}<extra></extra>"
+    ))
+    
+    # 색상 팔레트 생성 (10개의 구분되는 색상)
+    colors = [
+        '#636EFA',  # 파란색
+        '#EF553B',  # 빨간색
+        '#00CC96',  # 초록색
+        '#AB63FA',  # 보라색
+        '#FFA15A',  # 주황색
+        '#19D3F3',  # 하늘색
+        '#FF6692',  # 분홍색
+        '#B6E880',  # 연두색
+        '#FF97FF',  # 자주색
+        '#FECB52'   # 노란색
+    ]
+    
+    fig.update_traces(marker=dict(colors=colors))
+    
+    fig.update_layout(
+        title='유입 URL 분포 (최근 24시간)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#2c3e50'),
+        margin=dict(l=20, r=120, t=50, b=20),
+        showlegend=True,
+        legend=dict(
+            orientation="v",
+            yanchor="middle",
+            y=0.5,
+            xanchor="left",
+            x=1.1,
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='rgba(0,0,0,0.2)',
+            borderwidth=1
+        ),
+        height=300
+    )
+    
     return fig
 
 layout = create_home_layout() 
