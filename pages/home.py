@@ -53,7 +53,7 @@ def create_home_layout():
     }
 
     return html.Div([
-        html.H2("홈"),
+        html.H2("홈", style={"textAlign": "center"}),
         html.Div([
             # 첫 번째 row - 3:9 비율 (유입 수와 지도)
             dbc.Row([

@@ -6,7 +6,7 @@ NAV_LINKS = [
     {"icon": "🛣️", "label": "유입 경로 분석", "href": "/referrer"},
     {"icon": "🌍", "label": "지역 분석", "href": "/region"},
     {"icon": "⚙️", "label": "상태 코드 분석", "href": "/management"},
-    {"icon": "ℹ️", "label": "기타 페이지", "href": "/about"},
+    {"icon": "ℹ️", "label": "LOVi 소개", "href": "/about"},
 ]
 
 # 페이지 모듈 매핑

@@ -311,8 +311,8 @@ def create_referrer_layout():
         ], width=12),
     ])
 
-    return dbc.Container([
-        html.H2("유입 경로 분석", className="my-4"),
+    return html.Div([
+        html.H2("유입 경로 분석", style={"textAlign": "center"}),
         error_alert,
         loading_component,
         filters,
@@ -374,7 +374,7 @@ def create_referrer_layout():
             ]),
             className="mb-3"
         ),
-    ], fluid=True)
+    ])
 
 @callback(
     Output('total-referrers-metric', 'children'),
