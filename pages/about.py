@@ -12,16 +12,18 @@ def create_about_layout():
         ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"}),
         html.Div([
             html.Div([
-                html.P("귀여운 웹 로그 대시보드 애플리케이션입니다."),
+                html.H6("귀여운 웹 로그 대시보드 애플리케이션입니다.", style={"textAlign": "center"}),
                 html.Hr(),
                 
                 html.H4("🚀 배포 주소"),
                 html.P([
-                    html.A(
-                        "https://lovi.my",
-                        href="https://lovi.my",
-                        target="_blank"
-                    )
+                    html.A("https://lovi.my", href="https://lovi.my", target="_blank")
+                ]),
+                html.Hr(),
+                
+                html.H4("💻 GitHub 저장소"),
+                html.P([
+                    html.A("https://github.com/m3j2shy/Lovi_Dash", href="https://github.com/m3j2shy/Lovi_Dash", target="_blank")
                 ]),
                 html.Hr(),
                 
