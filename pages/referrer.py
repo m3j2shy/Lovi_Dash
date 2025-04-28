@@ -686,18 +686,25 @@ def update_channel_distribution(start_date, end_date):
     ))
     
     fig.update_layout(
-        title='유입 채널 분포',
+        title={
+            'text': '유입 채널 분포',
+            'y':0.97,  # 제목을 위로 올림
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top',
+            'pad': {'t': 40}  # top margin 추가
+        },
         plot_bgcolor=COLOR_SCHEME['background'],
         paper_bgcolor=COLOR_SCHEME['background'],
         font=dict(color=COLOR_SCHEME['text']),
-        margin=dict(l=50, r=50, t=50, b=50),
+        margin=dict(l=50, r=50, t=80, b=50),
         showlegend=True,
         legend=dict(
             orientation="h",
             yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
+            y=-0.2,  # 범례를 차트 아래로 내림
+            xanchor="center",
+            x=0.5
         )
     )
     
@@ -826,14 +833,3 @@ else:
     analysis_results = None
     min_date = None
     max_date = None
-
-
-
-    # if __name__ == "__main__":
-
-    #     print("\n유입 경로 분석 데이터 로드 중...")
-    #     referrer_df = load_referrer_data()
-    #     if referrer_df is not None:
-    #         print(f"\n유입 경로 분석 데이터 로드 완료: {len(referrer_df)}행")
-    #         print(referrer_df.head()) 
-        
