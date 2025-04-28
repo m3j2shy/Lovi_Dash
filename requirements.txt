@@ -57,7 +57,6 @@ pytest-mock==3.14.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
 pytz==2025.2
-pywin32==310
 referencing==0.36.2
 repoze.lru==0.7
 requests==2.32.3
