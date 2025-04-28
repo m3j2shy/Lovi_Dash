@@ -6,7 +6,7 @@ def create_about_layout():
         html.H2([
             html.Img(src="assets/hamster.png", width="24", height="24", alt="Hamster", style={"margin": "0 5px"}),
             html.Img(src="assets/rabbit.png", width="24", height="24", alt="Rabbit", style={"margin": "0 5px"}),
-            "Lovi",
+            "LOVi 소개",
             html.Img(src="assets/t-rex.png", width="24", height="24", alt="T-Rex", style={"margin": "0 5px"}),
             html.Img(src="assets/spouting-whale.png", width="24", height="24", alt="Whale", style={"margin": "0 5px"})
         ], style={"display": "flex", "alignItems": "center", "justifyContent": "center"}),

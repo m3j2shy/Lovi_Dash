@@ -100,7 +100,7 @@ cities_db = pd.read_csv('./assets/worldcities.csv')  # columns: city, country, l
 # [2] 레이아웃
 def create_region_layout():
     return html.Div([
-        html.H2("지역 분석"),
+        html.H2("지역 분석", style={"textAlign": "center"}),
         html.Div([
             html.Div([
                 # 필터 요소들

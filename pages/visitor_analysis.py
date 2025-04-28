@@ -157,8 +157,8 @@ def create_visitor_analysis_layout():
     )
 
     # 전체 레이아웃
-    return dbc.Container([
-        html.H1("방문자 분석 대시보드", className="my-4"),
+    return html.Div([
+        html.H2("방문자 분석", style={"textAlign": "center"}),
         filters,
         metrics_cards,
         filtered_visitors_panel,
@@ -227,7 +227,7 @@ def create_visitor_analysis_layout():
             ]),
             className="mb-3"
         ),
-    ], fluid=True)
+    ])
 
 def load_visitor_counts(start_date, end_date):
     """선택된 기간의 방문자 수를 계산합니다."""

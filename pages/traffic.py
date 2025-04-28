@@ -16,7 +16,7 @@ traffic_avg_per_hour_fig = tu.fig_traffic_avg_per_hour(start_date, end_date)
 # 트래픽 분석 페이지 레이아웃 생성
 def create_traffic_layout():
     return html.Div([
-        html.H2("트래픽 분석"),
+        html.H2("트래픽 분석", style={"textAlign": "center"}),
         html.Div([
             html.Div([
                 # 날짜 선택
