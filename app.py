@@ -2,6 +2,7 @@ import dash_bootstrap_components as dbc
 from dash import Dash, html, dcc, Output, Input, callback, State
 import os
 import socket
+import platform
 
 # 컴포넌트와 유틸리티 임포트
 from components.sidebar import create_sidebar
@@ -12,7 +13,12 @@ from pages import home, traffic, visitor_analysis, referrer, region, management,
 
 # 개발/배포 환경 구분
 HOSTNAME = socket.gethostname()
-IS_LOCAL = 'DESKTOP' in HOSTNAME or 'LAPTOP' in HOSTNAME
+LOCAL_HOSTNAMES = ['DESKTOP', 'LAPTOP', 'MIN', 'WIN', 'PC', 'LOCAL']
+IS_LOCAL = (
+    any(name in HOSTNAME.upper() for name in LOCAL_HOSTNAMES)
+    or platform.system() in ['Windows', 'Darwin']  # Windows, Mac
+    or os.environ.get('IS_LOCAL', '').lower() == 'true'
+)
 
 # 개발 환경에서만 기본 핫 리로드 설정
 if IS_LOCAL:
