@@ -71,6 +71,35 @@ def display_page(pathname):
     except Exception:
         return create_404_page()
 
+app.index_string = '''
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        {%metas%}
+        <title>Lovi Dashboard - 웹사이트 분석 대시보드</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="Lovi Dashboard는 웹사이트 트래픽, 사용자 행동, 유입 출처 등을 분석하는 대시보드입니다.">
+        <meta name="keywords" content="대시보드, 웹분석, 트래픽, 사용자분석, 유입출처">
+        <meta name="author" content="Lovi Team">
+        <meta property="og:title" content="Lovi Dashboard">
+        <meta property="og:description" content="웹사이트 분석 대시보드">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://lovi-dashboard-xxxxx-xx.a.run.app">
+        {%favicon%}
+        {%css%}
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>
+'''
+
 # 앱 실행
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
