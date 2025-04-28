@@ -351,7 +351,7 @@ def create_status_code_cards():
 def create_management_layout():
     """관리 페이지 레이아웃을 생성합니다."""
     return html.Div([
-        html.H2("로그 관리"),
+        html.H2("상태 코드 분석"),
         html.Div([
             # 필터 섹션
             html.Div([

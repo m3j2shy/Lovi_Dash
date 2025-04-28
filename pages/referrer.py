@@ -312,7 +312,7 @@ def create_referrer_layout():
     ])
 
     return dbc.Container([
-        html.H1("유입 경로 분석 대시보드", className="my-4"),
+        html.H2("유입 경로 분석", className="my-4"),
         error_alert,
         loading_component,
         filters,

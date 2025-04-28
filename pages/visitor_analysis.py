@@ -158,7 +158,7 @@ def create_visitor_analysis_layout():
 
     # 전체 레이아웃
     return dbc.Container([
-        html.H1("방문자 분석 대시보드", className="my-4"),
+        html.H2("방문자 분석", className="my-4"),
         filters,
         metrics_cards,
         filtered_visitors_panel,
