@@ -128,7 +128,7 @@ def create_home_layout():
                                 )
                             )
                         ], className="chart-container h-100 hover-effect", style=card_style),
-                        href="/management",
+                        href="/traffic",
                         style={"textDecoration": "none"}
                     )
                 ], width=12)
