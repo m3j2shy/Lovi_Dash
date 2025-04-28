@@ -85,7 +85,7 @@ app.index_string = '''
         <meta property="og:title" content="Lovi Dashboard">
         <meta property="og:description" content="웹사이트 분석 대시보드">
         <meta property="og:type" content="website">
-        <meta property="og:url" content="https://lovi-dashboard-xxxxx-xx.a.run.app">
+        <meta property="og:url" content="https://lovi.my">
         {%favicon%}
         {%css%}
     </head>
