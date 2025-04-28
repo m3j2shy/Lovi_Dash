@@ -86,6 +86,12 @@ app.index_string = '''
         <meta property="og:description" content="웹사이트 분석 대시보드">
         <meta property="og:type" content="website">
         <meta property="og:url" content="https://lovi.my">
+        <meta property="og:image" content="https://lovi.my/assets/LOVi_logo_whiteLine.png">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+        <meta property="og:image:alt" content="LOVi 로고">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:image" content="https://lovi.my/assets/LOVi_logo_whiteLine.png">
         {%favicon%}
         {%css%}
     </head>
